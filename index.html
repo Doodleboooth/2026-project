@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HELPFUL</title>
+
+  <!-- Bootstrap 5 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Caveat:wght@500;700&display=swap" rel="stylesheet" />
+
+  <!-- Link to CSS -->
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    
+      <!-- ── NAV ──────────────────────────────────────────── -->
+      <nav class="nav-bar">
+        <div></div>
+        <span class="nav-logo">HELPFUL</span>
+        <button class="hamburger" id="menuBtn" aria-label="Open menu">
+          <span></span><span></span><span></span>
+        </button>
+      </nav>
+    
+      <!-- slide-out menu -->
+      <div class="overlay" id="overlay"></div>
+      <div class="side-menu" id="sideMenu">
+        <button class="menu-close" id="menuClose">✕</button>
+        <a href="index.html">Home</a>
+        <a href="timer.html">5 Min Timer</a>
+        <a href="tasks.html">Task Manager</a>
+        <a href="breathing.html">Photo Booth</a>
+      </div>
+    
+      <!-- ── SECTION 1 — HERO ─────────────────────────────── -->
+      <section class="snap-section hero">
+
+        <div class="container">
+          <div class="row align-items-center g-4" style="padding-top: 200px;">
+    
+            <!-- left character -->
+            <div class="col-md-3 d-flex justify-content-center hide-mobile">
+              <div class="character-placeholder animate-in">
+                <!-- replace with: <img src="assets/char-left.png" alt=""> -->
+                <img src="Bearlogo3.png" alt="bear">
+              </div>
+            </div>
+    
+            <!-- centre text -->
+            <div class="col-md-6 text-center text-md-start">
+              <h1 class="hero-tagline animate-in delay-1">
+                Stop stressing,<br>
+                <span style="text-decoration:underline">Start doing</span>
+              </h1>
+              <p class="hero-sub animate-in delay-2">
+                Three simple tools to help you beat procrastination,
+                manage your tasks, and calm your nerves before you begin.
+              </p>
+            </div>
+    
+            <!-- right character -->
+            <div class="col-md-3 d-flex justify-content-center hide-mobile">
+              <div class="character-placeholder animate-in delay-3">
+                <!-- replace with: <img src="assets/char-right.png" alt=""> -->
+              </div>
+            </div>
+    
+
+            
+          </div>
+        </div>
+      </section>
+    
+      <!-- ── SECTION 2 — ABOUT ─────────────────────────────── -->
+      <section class="snap-section section-about">
+        <div class="container">
+          <div class="row align-items-center g-4">
+    
+            <!-- character with speech bubble -->
+            <div class="col-md-4 d-flex flex-column align-items-center gap-3">
+              <div class="speech-bubble animate-in">
+                Don't make yourself struggle — instead use these tools to help you
+              </div>
+              <div class="character-placeholder" style="max-width:140px">
+                <!-- replace with character PNG -->
+                character
+              </div>
+            </div>
+    
+            <!-- text -->
+            <div class="col-md-8">
+              <p class="section-heading animate-in">What is HELPFUL?</p>
+              <p class="section-text animate-in delay-1">
+                HELPFUL is a stress management tool built for Auckland high school students
+                facing overlapping NCEA internal deadlines. It gives you three focused tools —
+                no ads, no general advice, just the things that actually help you start.
+              </p>
+            </div>
+    
+          </div>
+        </div>
+      </section>
+    
+      <!-- ── SECTION 3 — TOOLS ─────────────────────────────── -->
+      <section class="snap-section section-tools">
+        <div class="container">
+          <div class="row g-4 justify-content-center">
+    
+            <div class="col-12 text-center mb-2">
+              <p class="section-heading animate-in">Pick a tool</p>
+            </div>
+    
+            <!-- Timer -->
+            <div class="col-md-4 col-10">
+              <div class="tool-card animate-in">
+                <a href="timer.html">
+                  <div class="tool-icon">⏱</div>
+                  <p class="tool-title">5 Min Timer</p>
+                  <p class="tool-desc">
+                    Start a 5-minute countdown to beat procrastination and get moving.
+                  </p>
+                </a>
+              </div>
+            </div>
+    
+            <!-- Task Manager -->
+            <div class="col-md-4 col-10">
+              <div class="tool-card animate-in delay-1">
+                <a href="tasks.html">
+                  <div class="tool-icon">✅</div>
+                  <p class="tool-title">Task Manager</p>
+                  <p class="tool-desc">
+                    Break big assessments into smaller steps and track your progress.
+                  </p>
+                </a>
+              </div>
+            </div>
+    
+            <!-- Box Breathing -->
+            <div class="col-md-4 col-10">
+              <div class="tool-card animate-in delay-2">
+                <a href="breathing.html">
+                  <div class="tool-icon">📸</div>
+                  <p class="tool-title">Photo Booth</p>
+                  <p class="tool-desc">
+                    Take a real break — four quick shots turned into a cute photo strip.
+                  </p>
+                </a>
+              </div>
+            </div>
+    
+          </div>
+        </div>
+      </section>
+    
+      <!-- ── SECTION 4 — CLOSING ───────────────────────────── -->
+      <section class="snap-section section-close">
+        <div class="container">
+          <div class="row align-items-center g-4">
+    
+            <div class="col-md-8">
+              <p class="section-heading animate-in">You've got this.</p>
+              <p class="section-text animate-in delay-1">
+                Every big assessment is just a series of small steps.
+                Pick a tool above and take the first one.
+              </p>
+            </div>
+    
+            <div class="col-md-4 d-flex justify-content-center hide-mobile">
+              <div class="character-placeholder" style="max-width:160px">
+                <!-- replace with character PNG -->
+                character
+              </div>
+            </div>
+    
+          </div>
+        </div>
+      </section>
+    
+    
+      <!-- Bootstrap JS -->
+      <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+      <script>
+        // ── Hamburger menu ───────────────────────────────────
+        const menuBtn   = document.getElementById('menuBtn');
+        const menuClose = document.getElementById('menuClose');
+        const sideMenu  = document.getElementById('sideMenu');
+        const overlay   = document.getElementById('overlay');
+    
+        function openMenu()  { sideMenu.classList.add('open'); overlay.classList.add('open'); }
+        function closeMenu() { sideMenu.classList.remove('open'); overlay.classList.remove('open'); }
+    
+        menuBtn.addEventListener('click', openMenu);
+        menuClose.addEventListener('click', closeMenu);
+        overlay.addEventListener('click', closeMenu);
+    
+        // ── Scroll-triggered animations ──────────────────────
+        const observer = new IntersectionObserver((entries) => {
+          entries.forEach(entry => {
+            if (entry.isIntersecting) {
+              entry.target.querySelectorAll('.animate-in').forEach(el => {
+                el.style.animationPlayState = 'running';
+              });
+            }
+          });
+        }, { threshold: 0.2 });
+    
+        document.querySelectorAll('.snap-section').forEach(section => {
+          // pause animations until section is in view
+          section.querySelectorAll('.animate-in').forEach(el => {
+            el.style.animationPlayState = 'paused';
+          });
+          observer.observe(section);
+        });
+      </script>
+</body>
+</html>
