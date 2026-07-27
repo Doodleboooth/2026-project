@@ -357,7 +357,7 @@ function initPhotoBooth() {
      but 668px on the download canvas, and fractions map onto both
      without any conversion maths.                                     */
   const STICKER_DIR   = '';
-  const STICKER_FILES = ['stickers/Bearlogo2.png', 'star.png', 'sparkle.png', 'bubble.png'];
+  const STICKER_FILES = ['stickers/Bearlogo2.png', 'stickers/star.png', 'stickers/sparkle.png', 'stickers/bubble.png'];
   const STICKER_W     = 0.22;          // sticker width as a fraction of the strip
   let placed = [];                     // [{ src, x, y }] — x/y are 0-1
 
