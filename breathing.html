@@ -78,6 +78,13 @@
           <div class="stickers">
             <span class="filters-label">Stickers — tap to add, then drag</span>
             <div class="sticker-tray" id="stickerTray"></div>
+
+            <!-- upload your own PNGs straight from your device -->
+            <button class="bth bth-soft sticker-clear" id="stickerUploadBtn">
+              Upload sticker
+            </button>
+            <input type="file" id="stickerUpload" accept="image/png,image/*" multiple hidden>
+
             <!-- hidden until at least one sticker is on the strip -->
             <button class="bth bth-soft sticker-clear" id="clearStickersBtn" hidden>
               Remove stickers

@@ -356,26 +356,95 @@ function initPhotoBooth() {
      pixels. That's the whole trick: the strip is ~300px wide on screen
      but 668px on the download canvas, and fractions map onto both
      without any conversion maths.                                     */
-  const STICKER_DIR   = 'stickers/';
-  const STICKER_FILES = ['heart.png', 'star.png', 'sparkle.png', 'bubble.png'];
+  const STICKER_DIR   = '';
+  const STICKER_FILES = ['stickers/Bearlogo2.png', 'star.png', 'sparkle.png', 'bubble.png'];
   const STICKER_W     = 0.22;          // sticker width as a fraction of the strip
   let placed = [];                     // [{ src, x, y }] — x/y are 0-1
 
-  const tray             = document.getElementById('stickerTray');
-  const clearStickersBtn = document.getElementById('clearStickersBtn');
+  const tray              = document.getElementById('stickerTray');
+  const clearStickersBtn  = document.getElementById('clearStickersBtn');
+  const stickerUploadBtn  = document.getElementById('stickerUploadBtn');
+  const stickerUpload     = document.getElementById('stickerUpload');
 
-  STICKER_FILES.forEach(function (file) {
+  /* addSwatch(): builds one tappable thumbnail in the tray.
+     Used for both sources — the presets above and anything you upload —
+     so uploaded art behaves identically to art in the folder.
+
+     'missingRemoves' is only true for presets: if the file isn't in the
+     stickers/ folder the swatch deletes itself rather than showing a
+     broken image. Uploads can't fail that way.                        */
+  function addSwatch(src, label, missingRemoves) {
     const b  = document.createElement('button');
     const im = document.createElement('img');
-    b.type = 'button';
-    b.title = 'Add ' + file.replace('.png', '');
-    im.src = STICKER_DIR + file;
-    im.alt = file.replace('.png', '');
-    im.onerror = function () { b.remove(); };   // file not there — hide the swatch
+    b.type  = 'button';
+    b.title = 'Add ' + label;
+    im.src  = src;
+    im.alt  = label;
+    if (missingRemoves) im.onerror = function () { b.remove(); };
     b.appendChild(im);
-    b.addEventListener('click', function () { addSticker(STICKER_DIR + file); });
+    b.addEventListener('click', function () { addSticker(src); });
     tray.appendChild(b);
+    return b;
+  }
+
+  /* preset stickers from the stickers/ folder.
+     Empty STICKER_FILES above if you only want your own uploads.      */
+  STICKER_FILES.forEach(function (file) {
+    addSwatch(STICKER_DIR + file, file.replace('.png', ''), true);
   });
+
+  /* ── UPLOADING YOUR OWN STICKERS ─────────────────────
+     Each file is read into an <img>, redrawn onto a canvas at no more
+     than 512px on its longest side, and stored as a PNG data URL.
+
+     Three reasons for the canvas round-trip rather than using the file
+     directly: it caps the memory a huge photo would eat, PNG output
+     preserves transparency (a JPEG would fill it with black), and a
+     data URL is same-origin so it can never taint the download canvas
+     the way a linked file can.                                        */
+  stickerUploadBtn.addEventListener('click', function () { stickerUpload.click(); });
+
+  stickerUpload.addEventListener('change', async function (e) {
+    const files = [].slice.call(e.target.files).filter(function (f) {
+      return f.type.indexOf('image/') === 0;
+    });
+    if (!files.length) return;
+
+    let added = 0;
+    for (const f of files) {
+      try {
+        const src = await fileToSticker(f);
+        addSwatch(src, f.name.replace(/\.[^.]+$/, ''), false);
+        added++;
+      } catch (err) {
+        toast('Could not read ' + f.name + '.');
+      }
+    }
+    if (added) {
+      toast('Added ' + added + ' sticker' + (added > 1 ? 's' : '') + ' to the tray — tap to place.');
+    }
+    stickerUpload.value = '';        // lets you re-pick the same file later
+  });
+
+  function fileToSticker(file) {
+    return new Promise(function (resolve, reject) {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = function () {
+        const MAX = 512;
+        const scale = Math.min(1, MAX / Math.max(img.width, img.height));
+        const w = Math.round(img.width  * scale);
+        const h = Math.round(img.height * scale);
+        const c = document.createElement('canvas');
+        c.width = w; c.height = h;
+        c.getContext('2d').drawImage(img, 0, 0, w, h);
+        URL.revokeObjectURL(url);
+        resolve(c.toDataURL('image/png'));   // PNG keeps transparency
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); reject(new Error('bad image')); };
+      img.src = url;
+    });
+  }
 
   /* Drop a new sticker near the middle, jittered slightly so tapping
      the same one twice doesn't hide one perfectly behind the other.   */
