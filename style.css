@@ -615,7 +615,9 @@ body {
    'touch-action: none' stops phones scrolling the page mid-drag.      */
 .placed {
   position: absolute;
-  width: 22%;
+  /* set by script.js from STICKER_W so the preview and the downloaded
+     PNG can never disagree. The 22% is only a fallback.              */
+  width: var(--sticker-w, 22%);
   transform: translate(-50%, -50%);
   cursor: grab;
   touch-action: none;
