@@ -357,9 +357,20 @@ function initPhotoBooth() {
      but 668px on the download canvas, and fractions map onto both
      without any conversion maths.                                     */
   const STICKER_DIR   = '';
-  const STICKER_FILES = ['stickers/Bearlogo2.png', 'stickers/star.png', 'stickers/sparkle.png', 'stickers/bubble.png'];
-  const STICKER_W     = 0.22;          // sticker width as a fraction of the strip
+  const STICKER_FILES = ['stickers/Bearlogo2.png','stickers/stickerTEST1.png', 'stickers/TEST2.png', 'stickers/sparkle.png', 'stickers/bubble.png'];
+  /* Sticker width as a fraction of the strip's width.
+     One photo is 600px of the strip's 668px, so 0.90 makes a sticker
+     exactly one photo wide. Reference points:
+       0.22  a quarter of a photo      0.67  three-quarters
+       0.45  half a photo              0.90  exactly one photo
+     Export art at roughly 2x the drawn size to stay crisp —
+     at 0.90 that's a 1200 x 1200px PNG.                              */
+  const STICKER_W     = 0.90;
   let placed = [];                     // [{ src, x, y }] — x/y are 0-1
+
+  /* Push STICKER_W into CSS so the on-screen size is driven by the same
+     number as the download. Change STICKER_W alone and both follow.   */
+  stripEl.style.setProperty('--sticker-w', (STICKER_W * 100) + '%');
 
   const tray              = document.getElementById('stickerTray');
   const clearStickersBtn  = document.getElementById('clearStickersBtn');
@@ -431,10 +442,11 @@ function initPhotoBooth() {
       const url = URL.createObjectURL(file);
       const img = new Image();
       img.onload = function () {
-        const MAX = 512;
-        const scale = Math.min(1, MAX / Math.max(img.width, img.height));
-        const w = Math.round(img.width  * scale);
-        const h = Math.round(img.height * scale);
+        /* Uploads keep their full resolution — no downscaling.
+           To cap them again, set MAX to a pixel size and multiply
+           w/h by Math.min(1, MAX / Math.max(img.width, img.height)). */
+        const w = img.width;
+        const h = img.height;
         const c = document.createElement('canvas');
         c.width = w; c.height = h;
         c.getContext('2d').drawImage(img, 0, 0, w, h);
@@ -586,51 +598,93 @@ function initPhotoBooth() {
       any error inside an async handler vanishes into the console and the
       button just appears to do nothing.                                */
    try {
-    const PHOTO = 600, PAD = 34, GAP = 20, FOOT = 96;
-    const W = PHOTO + PAD * 2;
-    const H = PAD + PHOTO * 4 + GAP * 3 + FOOT;
+    /* ── GEOMETRY MEASURED FROM THE LIVE PAGE ────────────
+       The download used to be laid out with its own constants — PAD 34,
+       GAP 20 and so on. Those were hand-picked to look like the CSS
+       (padding 18, gap 12) but weren't proportionally identical, so the
+       photos came out 89.8% of the strip's width instead of 88.0%. Tiny,
+       but enough to make stickers look smaller than in the preview.
+
+       Now nothing is hard-coded. We measure the real strip and every
+       slot with getBoundingClientRect(), then multiply by one SCALE
+       factor. The download is a scaled-up copy of exactly what you're
+       looking at — and it stays that way even if you edit the CSS.    */
+    const rect = stripEl.getBoundingClientRect();
+    if (!rect.width) throw new Error('the strip is not visible');
+
+    const TARGET_W = 1080;                     // output width in pixels
+    const SCALE = TARGET_W / rect.width;
+    const W = Math.round(rect.width  * SCALE);
+    const H = Math.round(rect.height * SCALE);
 
     const c = document.createElement('canvas');
     c.width = W; c.height = H;
     const ctx = c.getContext('2d');
 
-    ctx.fillStyle = '#FFFFFF';
-    ctx.fillRect(0, 0, W, H);
+    /* positions are measured relative to the strip's top-left corner */
+    const rel = function (el) {
+      const r = el.getBoundingClientRect();
+      return {
+        x: (r.left - rect.left) * SCALE,
+        y: (r.top  - rect.top)  * SCALE,
+        w: r.width  * SCALE,
+        h: r.height * SCALE
+      };
+    };
+    const radiusOf = function (el) {
+      return parseFloat(getComputedStyle(el).borderTopLeftRadius) * SCALE || 0;
+    };
 
+    /* strip background, with the same rounded corners as on screen */
+    const stripCss = getComputedStyle(stripEl);
+    ctx.fillStyle = stripCss.backgroundColor || '#FFFFFF';
+    roundRect(ctx, 0, 0, W, H, radiusOf(stripEl));
+    ctx.fill();
+
+    /* photos, drawn wherever their slots actually sit */
     for (let i = 0; i < 4; i++) {
-      const y = PAD + i * (PHOTO + GAP);
+      const p = rel(slots[i]);
+      ctx.save();
+      roundRect(ctx, p.x, p.y, p.w, p.h, radiusOf(slots[i]));
+      ctx.clip();
       if (shots[i]) {
         const img = await loadImage(shots[i]);
-        ctx.save();
         ctx.filter = FILTERS[filter];
-        ctx.drawImage(img, PAD, y, PHOTO, PHOTO);
-        ctx.restore();
+        ctx.drawImage(img, p.x, p.y, p.w, p.h);
       } else {
         ctx.fillStyle = '#F0EDE7';
-        ctx.fillRect(PAD, y, PHOTO, PHOTO);
+        ctx.fillRect(p.x, p.y, p.w, p.h);
       }
+      ctx.restore();
     }
 
-    const footY = PAD + PHOTO * 4 + GAP * 3;
-    ctx.fillStyle = '#4A4A4A';
-    ctx.textAlign = 'center';
-    ctx.font = "600 34px 'Space Grotesk', sans-serif";
-    ctx.fillText('HELPFUL', W / 2, footY + 46);
-    ctx.font = "400 22px 'Space Grotesk', sans-serif";
-    ctx.fillStyle = '#9a968f';
-    ctx.fillText(new Date().toLocaleDateString(), W / 2, footY + 76);
+    /* footer — same text, font, colour and position as the preview */
+    const footEl = document.getElementById('stripFoot');
+    if (footEl && footEl.textContent.trim()) {
+      if (document.fonts && document.fonts.ready) await document.fonts.ready;
+      const f  = rel(footEl);
+      const fc = getComputedStyle(footEl);
+      ctx.fillStyle    = fc.color;
+      ctx.textAlign    = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.font = fc.fontStyle + ' ' + fc.fontWeight + ' ' +
+                 (parseFloat(fc.fontSize) * SCALE) + 'px ' + fc.fontFamily;
+      ctx.fillText(footEl.textContent.trim(), W / 2, f.y + f.h / 2);
+    }
 
-    /* Stickers go on last so they sit above the photos and footer,
-       exactly as they do on screen. The stored fractions multiply
-       straight into canvas pixels — s.x of 0.5 is the middle of the
-       strip whether that's 150px on screen or 334px here.
-       Height is derived from each PNG's real aspect ratio so
-       non-square sticker art isn't squashed.                          */
-    for (const s of placed) {
-      const img = await loadImage(s.src);
-      const w = STICKER_W * W;
-      const h = w * (img.naturalHeight / img.naturalWidth);
-      ctx.drawImage(img, s.x * W - w / 2, s.y * H - h / 2, w, h);
+    /* stickers last, so they sit on top exactly as they do on screen.
+       Measuring the placed elements rather than recomputing from the
+       fractions means position, size and aspect ratio all match by
+       construction — there's no second calculation to get wrong.      */
+    const stickerEls = stripEl.querySelectorAll('.placed');
+    for (const el of stickerEls) {
+      const p   = rel(el);
+      const img = await loadImage(el.src);
+      ctx.save();
+      ctx.filter = 'drop-shadow(0 ' + (2 * SCALE).toFixed(1) + 'px ' +
+                   (5 * SCALE).toFixed(1) + 'px rgba(0,0,0,.25))';
+      ctx.drawImage(img, p.x, p.y, p.w, p.h);
+      ctx.restore();
     }
 
     /* ── SAVING IT ───────────────────────────────────────
@@ -651,7 +705,14 @@ function initPhotoBooth() {
     /* 1. PHONES — the native share sheet, which includes Save to Photos.
           This is the only route on iOS that reliably lands the strip in
           the camera roll rather than a Files folder.                   */
-    if (navigator.canShare) {
+    /* Desktop Chrome and Edge support navigator.share too, but there the
+       share sheet is the wrong answer — clicking Download should put a
+       file in your Downloads folder, not open a dialog. '(pointer:
+       coarse)' is true for fingers and false for a mouse, so this keeps
+       the share sheet on phones and tablets only.                      */
+    const isTouch = window.matchMedia('(pointer: coarse)').matches;
+
+    if (isTouch && navigator.canShare) {
       const file = new File([blob], name, { type: 'image/png' });
       if (navigator.canShare({ files: [file] })) {
         try {
@@ -690,6 +751,20 @@ function initPhotoBooth() {
      toast('Could not save the strip — ' + (err.message || err.name) + '.', 5000);
    }
   });
+
+  /* roundRect(): traces a rounded rectangle path. Canvas has a built-in
+     ctx.roundRect() now, but it's recent enough that older phones miss
+     it — this works everywhere.                                       */
+  function roundRect(ctx, x, y, w, h, r) {
+    r = Math.min(r || 0, w / 2, h / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y,     x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x,     y + h, r);
+    ctx.arcTo(x,     y + h, x,     y,     r);
+    ctx.arcTo(x,     y,     x + w, y,     r);
+    ctx.closePath();
+  }
 
   function loadImage(src) {
     return new Promise(function (res, rej) {
