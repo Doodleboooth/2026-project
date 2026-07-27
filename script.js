@@ -582,6 +582,10 @@ function initPhotoBooth() {
      data URL and clicking it in code — no server involved, the file is
      generated entirely in the browser.                                  */
   downloadBtn.addEventListener('click', async function () {
+   /* Everything is wrapped so a failure says so out loud. Without this,
+      any error inside an async handler vanishes into the console and the
+      button just appears to do nothing.                                */
+   try {
     const PHOTO = 600, PAD = 34, GAP = 20, FOOT = 96;
     const W = PHOTO + PAD * 2;
     const H = PAD + PHOTO * 4 + GAP * 3 + FOOT;
@@ -629,11 +633,62 @@ function initPhotoBooth() {
       ctx.drawImage(img, s.x * W - w / 2, s.y * H - h / 2, w, h);
     }
 
+    /* ── SAVING IT ───────────────────────────────────────
+       The strip is a tall PNG, easily several megabytes. The old code
+       used toDataURL(), which encodes the whole thing as one enormous
+       base64 string and hands it to an <a download>. Desktop copes;
+       phones often don't — Safari in particular caps how big a URL can
+       be and simply ignores oversized ones, which is why nothing
+       happened when you tapped Download.
+
+       toBlob() produces real binary data instead, roughly a third the
+       size and far friendlier to memory. From there we try three routes
+       in order of how well each works on the device at hand.          */
+    const name = 'photobooth-' + Date.now() + '.png';
+    const blob = await new Promise(function (res) { c.toBlob(res, 'image/png'); });
+    if (!blob) throw new Error('the image could not be created');
+
+    /* 1. PHONES — the native share sheet, which includes Save to Photos.
+          This is the only route on iOS that reliably lands the strip in
+          the camera roll rather than a Files folder.                   */
+    if (navigator.canShare) {
+      const file = new File([blob], name, { type: 'image/png' });
+      if (navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file], title: 'My photo strip' });
+          toast('Saved.');
+          return;
+        } catch (err) {
+          if (err.name === 'AbortError') return;   // user tapped Cancel
+          /* anything else: fall through to the download route */
+        }
+      }
+    }
+
+    /* 2. DESKTOP AND ANDROID — an object URL is just a short pointer to
+          the blob, so there's no size limit to run into.               */
+    const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.download = 'photobooth-' + Date.now() + '.png';
-    a.href = c.toDataURL('image/png');
+
+    if (typeof a.download === 'undefined') {
+      /* 3. OLDER BROWSERS with no download attribute: show the image and
+            let the user save it by hand.                               */
+      window.open(url, '_blank');
+      toast('Press and hold the image to save it.', 5000);
+      return;
+    }
+
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);      // Firefox needs it in the document
     a.click();
+    a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 10000);
     toast('Strip downloaded.');
+
+   } catch (err) {
+     toast('Could not save the strip — ' + (err.message || err.name) + '.', 5000);
+   }
   });
 
   function loadImage(src) {
