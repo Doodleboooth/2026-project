@@ -357,7 +357,7 @@ function initPhotoBooth() {
      but 668px on the download canvas, and fractions map onto both
      without any conversion maths.                                     */
   const STICKER_DIR   = '';
-  const STICKER_FILES = ['Bearlogo3.png','stickers/', 'stickers/TEST2.png', 'stickers/', 'stickers/'];/*---------Sticker eddition edit line Uploads here-----------------*/
+  const STICKER_FILES = ['Bearlogo3.png','stickers/TEST2_S1.png', 'stickers/TEST2.png', 'stickers/TEST2_S2.png', 'stickers/TEST2_S3.png', 'stickers/TEST3_F.png',];/*---------Sticker eddition edit line Uploads here-----------------*/
   /* Sticker width as a fraction of the strip's width.
      One photo is 600px of the strip's 668px, so 0.90 makes a sticker
      exactly one photo wide. Reference points:
@@ -791,3 +791,476 @@ function initPhotoBooth() {
 }
 
 initPhotoBooth();
+
+
+/* ══ 5 MIN TIMER (timer.html only) ═══════════════════
+   Same pattern as the photo booth: everything lives inside one
+   function, and the guard on the first line means this file stays
+   safe to load on every page of the site.                        */
+function initTimer() {
+  const dial = document.getElementById('dial');
+  if (!dial) return;                       // not the timer page
+
+  const timeEl   = document.getElementById('time');
+  const msgEl    = document.getElementById('message');
+  const ring     = document.getElementById('ringFill');
+  const startBtn = document.getElementById('startBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const minusBtn = document.getElementById('minusBtn');
+  const plusBtn  = document.getElementById('plusBtn');
+  const adjLabel = document.getElementById('adjLabel');
+  const page     = document.querySelector('.timer-page');
+  const toastEl  = document.getElementById('toast');
+
+  /* ── STATE ─────────────────────────────────────────
+     total    : the chosen length in seconds
+     endAt    : the clock time the timer should finish at
+     left     : seconds remaining, kept for pausing
+     running  : is the countdown currently ticking            */
+  let total   = 5 * 60;
+  let left    = total;
+  let endAt   = 0;
+  let running = false;
+  let tickId  = null;
+
+  const MIN = 60, MAX = 60 * 60, STEP = 60;
+
+  const toast = function (msg, ms) {
+    if (!toastEl) return;
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(toast._t);
+    toast._t = setTimeout(function () { toastEl.classList.remove('show'); }, ms || 2600);
+  };
+
+  /* ── THE RING ──────────────────────────────────────
+     An SVG circle can be drawn as a dashed line. If one dash is
+     exactly as long as the circle, the "dash" is the whole ring.
+     Shifting where that dash starts (stroke-dashoffset) then hides
+     part of it — which is how the arc appears to empty out.
+     The CSS rotates the SVG -90deg so it starts at the top.      */
+  const R = 108;
+  const CIRC = 2 * Math.PI * R;
+  ring.style.strokeDasharray = CIRC;
+
+  function paintRing() {
+    const fraction = total ? left / total : 0;
+    ring.style.strokeDashoffset = CIRC * (1 - fraction);
+  }
+
+  /* ── MESSAGES ──────────────────────────────────────
+     Chosen by how far through you are, not by a fixed time, so they
+     still make sense whether the timer is 1 minute or 25.        */
+  function messageFor(fractionLeft) {
+    if (!running && left === total) return 'Ready when you are.';
+    if (left === 0)          return 'Done. That was it.';
+    if (!running)            return 'Paused — pick it back up.';
+    if (fractionLeft > 0.8)  return 'Just start. Anything counts.';
+    if (fractionLeft > 0.5)  return 'You are already going.';
+    if (fractionLeft > 0.25) return 'Past halfway.';
+    if (fractionLeft > 0.08) return 'Nearly there.';
+    return 'Finish this bit.';
+  }
+
+  function fmt(s) {
+    const m = Math.floor(s / 60);
+    const r = s % 60;
+    return String(m).padStart(2, '0') + ':' + String(r).padStart(2, '0');
+  }
+
+  function paint() {
+    timeEl.textContent = fmt(left);
+    msgEl.textContent  = messageFor(total ? left / total : 0);
+    adjLabel.textContent = (total / 60) + (total === 60 ? ' minute' : ' minutes');
+    paintRing();
+
+    dial.classList.toggle('running', running);
+    dial.classList.toggle('done', left === 0);
+    page.classList.toggle('running', running);
+
+    startBtn.textContent = running ? 'Pause' : (left === total ? 'Start' : 'Resume');
+    resetBtn.disabled = running ? false : (left === total);
+    minusBtn.disabled = running || total <= MIN;
+    plusBtn.disabled  = running || total >= MAX;
+  }
+
+  /* ── THE COUNTDOWN ─────────────────────────────────
+     The remaining time is worked out from the clock, not by counting
+     how many times this function has run. setInterval is never exact,
+     and browsers slow timers right down in background tabs, so
+     counting ticks would drift by minutes over a long session.
+     Comparing against a fixed end time is always accurate.        */
+  function tick() {
+    left = Math.max(0, Math.round((endAt - Date.now()) / 1000));
+    paint();
+    if (left === 0) finish();
+  }
+
+  function start() {
+    if (left === 0) left = total;          // finished, so start over
+    endAt = Date.now() + left * 1000;
+    running = true;
+    clearInterval(tickId);
+    tickId = setInterval(tick, 250);       // 4x a second keeps it smooth
+    paint();
+  }
+
+  function pause() {
+    running = false;
+    clearInterval(tickId);
+    left = Math.max(0, Math.round((endAt - Date.now()) / 1000));
+    paint();
+  }
+
+  function reset() {
+    running = false;
+    clearInterval(tickId);
+    left = total;
+    paint();
+  }
+
+  function finish() {
+    running = false;
+    clearInterval(tickId);
+    chime();
+    paint();
+    toast('Time is up. Well done.', 4000);
+  }
+
+  /* ── THE CHIME ─────────────────────────────────────
+     Made with the Web Audio API rather than a sound file, so there is
+     nothing extra to download and it cannot fail to load. Two soft
+     notes, the second slightly higher, each fading out.
+     The AudioContext is created on the click that starts the timer —
+     browsers block audio that was not triggered by a user action.  */
+  let audio = null;
+  function chime() {
+    try {
+      if (!audio) audio = new (window.AudioContext || window.webkitAudioContext)();
+      [0, 0.28].forEach(function (delay, i) {
+        const osc  = audio.createOscillator();
+        const gain = audio.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = i === 0 ? 660 : 880;
+        const t = audio.currentTime + delay;
+        gain.gain.setValueAtTime(0.0001, t);
+        gain.gain.exponentialRampToValueAtTime(0.25, t + 0.03);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.7);
+        osc.connect(gain); gain.connect(audio.destination);
+        osc.start(t); osc.stop(t + 0.75);
+      });
+    } catch (err) { /* no audio available — the visuals still work */ }
+  }
+
+  /* ── CONTROLS ──────────────────────────────────────── */
+  startBtn.addEventListener('click', function () {
+    /* creating the AudioContext here means it is unlocked by a real
+       click, so the chime is allowed to play later */
+    if (!audio) {
+      try { audio = new (window.AudioContext || window.webkitAudioContext)(); }
+      catch (err) { audio = null; }
+    }
+    running ? pause() : start();
+  });
+
+  resetBtn.addEventListener('click', reset);
+
+  function setTotal(mins) {
+    if (running) return;
+    total = Math.min(MAX, Math.max(MIN, mins * 60));
+    left  = total;
+    document.querySelectorAll('.timer-presets .chip').forEach(function (c) {
+      c.setAttribute('aria-pressed', +c.dataset.mins === total / 60);
+    });
+    paint();
+  }
+
+  minusBtn.addEventListener('click', function () { setTotal((total - STEP) / 60); });
+  plusBtn.addEventListener('click',  function () { setTotal((total + STEP) / 60); });
+
+  document.querySelectorAll('.timer-presets .chip').forEach(function (chip) {
+    chip.addEventListener('click', function () { setTotal(+chip.dataset.mins); });
+  });
+
+  /* spacebar starts and pauses, since this page has one main job */
+  document.addEventListener('keydown', function (e) {
+    if (e.code === 'Space' && e.target === document.body) {
+      e.preventDefault();
+      startBtn.click();
+    }
+  });
+
+  paint();
+}
+
+initTimer();
+
+
+/* ══ TASK MANAGER (tasks.html only) ══════════════════
+   Same pattern again: one function, guarded on the first line, so
+   this file stays safe to load on every page.                    */
+function initTasks() {
+  const listEl = document.getElementById('taskList');
+  if (!listEl) return;                     // not the task manager page
+
+  const form       = document.getElementById('addForm');
+  const titleInput = document.getElementById('newTitle');
+  const dueInput   = document.getElementById('newDue');
+  const emptyNote  = document.getElementById('emptyNote');
+  const overall    = document.getElementById('overall');
+  const overallBar = document.getElementById('overallBar');
+  const overallTxt = document.getElementById('overallText');
+  const clearDone  = document.getElementById('clearDoneBtn');
+  const toastEl    = document.getElementById('toast');
+
+  const KEY = 'helpful.tasks.v1';
+
+  /* ── STATE ─────────────────────────────────────────
+     One array holds everything. Each assessment looks like:
+       { id, title, due, steps: [ { id, text, done } ] }
+     Same idea as the photo booth: the screen is only ever a drawing
+     of this array, so the two can't disagree.                    */
+  let tasks = load();
+
+  const toast = function (msg, ms) {
+    if (!toastEl) return;
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(toast._t);
+    toast._t = setTimeout(function () { toastEl.classList.remove('show'); }, ms || 2600);
+  };
+
+  const uid = function () { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); };
+
+  /* ── SAVING ────────────────────────────────────────
+     localStorage keeps the data in the browser after the tab closes.
+     It only stores text, so the array is converted to JSON on the way
+     out and parsed back on the way in. Both are wrapped in try/catch
+     because storage can be full or blocked in private browsing, and
+     a crash here would take the whole page down.                 */
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(tasks)); }
+    catch (err) { toast('Could not save — your browser is blocking storage.', 4000); }
+  }
+
+  function load() {
+    try {
+      const raw = localStorage.getItem(KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (err) { return []; }
+  }
+
+  /* ── DUE DATES ─────────────────────────────────────
+     Both dates are flattened to midnight before comparing, so "due
+     today" stays today all day instead of flipping to "overdue" the
+     moment the clock passes the time you created it.             */
+  function dueInfo(due, complete) {
+    if (!due) return null;
+    const d = new Date(due + 'T00:00:00');
+    if (isNaN(d)) return null;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const days = Math.round((d - today) / 86400000);
+
+    if (complete)   return { text: 'Finished', cls: 'done' };
+    if (days < 0)   return { text: Math.abs(days) + (Math.abs(days) === 1 ? ' day overdue' : ' days overdue'), cls: 'overdue' };
+    if (days === 0) return { text: 'Due today', cls: 'soon' };
+    if (days === 1) return { text: 'Due tomorrow', cls: 'soon' };
+    if (days <= 3)  return { text: 'Due in ' + days + ' days', cls: 'soon' };
+    return { text: 'Due in ' + days + ' days', cls: '' };
+  }
+
+  const esc = function (s) {
+    return String(s).replace(/[&<>"']/g, function (ch) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch];
+    });
+  };
+
+  /* ── DRAWING ───────────────────────────────────────── */
+  function render() {
+    listEl.innerHTML = '';
+
+    tasks.forEach(function (t) {
+      const total    = t.steps.length;
+      const done     = t.steps.filter(function (s) { return s.done; }).length;
+      const complete = total > 0 && done === total;
+      const pct      = total ? Math.round(done / total * 100) : 0;
+      const info     = dueInfo(t.due, complete);
+
+      const card = document.createElement('div');
+      card.className = 'task-card' + (complete ? ' complete' : '');
+      card.dataset.id = t.id;
+
+      card.innerHTML =
+        '<div class="card-head">' +
+          '<div class="card-title" data-act="rename" title="Click to rename">' + esc(t.title) + '</div>' +
+          '<button class="icon-btn" data-act="delete" title="Delete assessment">✕</button>' +
+        '</div>' +
+        (info ? '<span class="due ' + info.cls + '">' + info.text + '</span>' : '') +
+        '<div class="bar"><div class="bar-fill" style="width:' + pct + '%"></div></div>' +
+        '<p class="count">' + (total ? done + ' of ' + total + ' steps done' : 'No steps yet — add the first one below') + '</p>' +
+        '<ul class="steps">' +
+          t.steps.map(function (s) {
+            return '<li class="step' + (s.done ? ' done' : '') + '" data-sid="' + s.id + '" draggable="true">' +
+                     '<span class="grip" title="Drag to reorder">⠿</span>' +
+                     '<input type="checkbox" data-act="toggle"' + (s.done ? ' checked' : '') + '>' +
+                     '<span class="step-text" data-act="edit-step">' + esc(s.text) + '</span>' +
+                     '<button class="icon-btn" data-act="del-step" title="Remove step">✕</button>' +
+                   '</li>';
+          }).join('') +
+        '</ul>' +
+        '<form class="add-step" data-act="add-step">' +
+          '<input class="field" type="text" maxlength="90" placeholder="Add a step — e.g. find 3 sources" required>' +
+          '<button class="bth bth-soft" type="submit">Add</button>' +
+        '</form>';
+
+      listEl.appendChild(card);
+    });
+
+    /* overall progress across every assessment */
+    const allSteps = tasks.reduce(function (n, t) { return n + t.steps.length; }, 0);
+    const allDone  = tasks.reduce(function (n, t) {
+      return n + t.steps.filter(function (s) { return s.done; }).length;
+    }, 0);
+
+    overall.hidden = tasks.length === 0;
+    emptyNote.hidden = tasks.length > 0;
+    overallTxt.textContent = allDone + ' of ' + allSteps + ' steps done';
+    overallBar.style.width = (allSteps ? Math.round(allDone / allSteps * 100) : 0) + '%';
+  }
+
+  const findTask = function (id) {
+    return tasks.filter(function (t) { return t.id === id; })[0];
+  };
+
+  /* ── ADDING AN ASSESSMENT ──────────────────────────── */
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    const title = titleInput.value.trim();
+    if (!title) return;
+    tasks.unshift({ id: uid(), title: title, due: dueInput.value || '', steps: [] });
+    titleInput.value = ''; dueInput.value = '';
+    save(); render();
+    toast('Added. Now break it into steps.');
+  });
+
+  /* ── EVERYTHING INSIDE A CARD ──────────────────────
+     One listener on the list handles all the buttons, because cards
+     are rebuilt on every render and listeners attached to them would
+     die immediately. Same event delegation as the photo booth.    */
+  listEl.addEventListener('click', function (e) {
+    const card = e.target.closest('.task-card');
+    if (!card) return;
+    const t = findTask(card.dataset.id);
+    if (!t) return;
+    const act = e.target.dataset.act;
+
+    if (act === 'delete') {
+      tasks = tasks.filter(function (x) { return x.id !== t.id; });
+      save(); render(); toast('Assessment deleted.');
+    }
+
+    if (act === 'toggle') {
+      const li = e.target.closest('.step');
+      const s  = t.steps.filter(function (x) { return x.id === li.dataset.sid; })[0];
+      if (s) { s.done = e.target.checked; save(); render(); }
+    }
+
+    if (act === 'del-step') {
+      const li = e.target.closest('.step');
+      t.steps = t.steps.filter(function (x) { return x.id !== li.dataset.sid; });
+      save(); render();
+    }
+
+    if (act === 'rename') {
+      const next = prompt('Rename this assessment:', t.title);
+      if (next && next.trim()) { t.title = next.trim(); save(); render(); }
+    }
+
+    if (act === 'edit-step') {
+      const li = e.target.closest('.step');
+      const s  = t.steps.filter(function (x) { return x.id === li.dataset.sid; })[0];
+      if (!s) return;
+      const next = prompt('Edit this step:', s.text);
+      if (next && next.trim()) { s.text = next.trim(); save(); render(); }
+    }
+  });
+
+  /* adding a step — the form lives inside each card */
+  listEl.addEventListener('submit', function (e) {
+    if (e.target.dataset.act !== 'add-step') return;
+    e.preventDefault();
+    const card = e.target.closest('.task-card');
+    const t = findTask(card.dataset.id);
+    const input = e.target.querySelector('input');
+    const text = input.value.trim();
+    if (!t || !text) return;
+    t.steps.push({ id: uid(), text: text, done: false });
+    input.value = '';
+    save(); render();
+  });
+
+  clearDone.addEventListener('click', function () {
+    const before = tasks.length;
+    tasks = tasks.filter(function (t) {
+      return !(t.steps.length && t.steps.every(function (s) { return s.done; }));
+    });
+    if (tasks.length === before) { toast('Nothing finished yet.'); return; }
+    save(); render();
+    toast('Cleared ' + (before - tasks.length) + ' finished.');
+  });
+
+  /* ── REORDERING STEPS ──────────────────────────────
+     HTML5 drag and drop. dragstart remembers which step is moving,
+     dragover marks where it would land, and drop moves it in the
+     array — then the list is redrawn from the array as usual.     */
+  let dragSid = null, dragCardId = null;
+
+  listEl.addEventListener('dragstart', function (e) {
+    const li = e.target.closest('.step');
+    if (!li) return;
+    dragSid    = li.dataset.sid;
+    dragCardId = li.closest('.task-card').dataset.id;
+    li.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', dragSid);   // Firefox needs this
+  });
+
+  listEl.addEventListener('dragover', function (e) {
+    const li = e.target.closest('.step');
+    if (!li || !dragSid) return;
+    if (li.closest('.task-card').dataset.id !== dragCardId) return;   // same card only
+    e.preventDefault();
+    listEl.querySelectorAll('.drop-target').forEach(function (n) { n.classList.remove('drop-target'); });
+    li.classList.add('drop-target');
+  });
+
+  listEl.addEventListener('drop', function (e) {
+    const li = e.target.closest('.step');
+    if (!li || !dragSid) return;
+    e.preventDefault();
+    const t = findTask(dragCardId);
+    if (!t) return;
+
+    const from = t.steps.findIndex(function (s) { return s.id === dragSid; });
+    const to   = t.steps.findIndex(function (s) { return s.id === li.dataset.sid; });
+    if (from < 0 || to < 0 || from === to) return;
+
+    const moved = t.steps.splice(from, 1)[0];
+    t.steps.splice(to, 0, moved);
+    save(); render();
+  });
+
+  listEl.addEventListener('dragend', function () {
+    listEl.querySelectorAll('.dragging, .drop-target').forEach(function (n) {
+      n.classList.remove('dragging', 'drop-target');
+    });
+    dragSid = null; dragCardId = null;
+  });
+
+  render();
+}
+
+initTasks();

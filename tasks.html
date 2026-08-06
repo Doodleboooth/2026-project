@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Task Manager — HELPFUL</title>
+
+  <!-- Bootstrap 5 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Caveat:wght@500;700&display=swap" rel="stylesheet" />
+
+  <!-- Site CSS — task manager styles are in here under "TASK MANAGER" -->
+  <link rel="stylesheet" href="style.css?v=2">
+</head>
+
+<body>
+
+  <!-- ── NAV ──────────────────────────────────────────── -->
+  <nav class="nav-bar">
+    <div></div>
+    <span class="nav-logo">HELPFUL</span>
+    <button class="hamburger" id="menuBtn" aria-label="Open menu">
+      <span></span><span></span><span></span>
+    </button>
+  </nav>
+
+  <div class="overlay" id="overlay"></div>
+  <div class="side-menu" id="sideMenu">
+    <button class="menu-close" id="menuClose">✕</button>
+    <a href="index.html">Home</a>
+    <a href="timer.html">5 Min Timer</a>
+    <a href="tasks.html">Task Manager</a>
+    <a href="breathing.html">Photo Booth</a>
+  </div>
+
+  <!-- ── TASK MANAGER ─────────────────────────────────── -->
+  <main class="tasks-page">
+    <h1 class="tasks-title">Task Manager</h1>
+    <p class="tasks-sub">Big assessments are just a pile of small steps. Write the steps down and the pile gets smaller.</p>
+
+    <!-- overall progress across everything -->
+    <div class="overall" id="overall" hidden>
+      <div class="overall-head">
+        <span id="overallText">0 of 0 steps done</span>
+        <button class="link-btn" id="clearDoneBtn">Clear finished</button>
+      </div>
+      <div class="bar"><div class="bar-fill" id="overallBar"></div></div>
+    </div>
+
+    <!-- add a new assessment -->
+    <form class="add-card" id="addForm">
+      <input class="field" id="newTitle" type="text" maxlength="80"
+             placeholder="Assessment name — e.g. English 1.4 essay" required>
+      <div class="add-row">
+        <input class="field field-date" id="newDue" type="date" aria-label="Due date">
+        <button class="bth bth-primary" type="submit">Add assessment</button>
+      </div>
+    </form>
+
+    <!-- everything gets drawn in here by script.js -->
+    <div class="task-list" id="taskList"></div>
+
+    <p class="empty-note" id="emptyNote">
+      Nothing here yet. Add your first assessment above — then break it into steps.
+    </p>
+  </main>
+
+  <div class="booth-toast" id="toast"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- Task manager behaviour lives in script.js -->
+  <script src="script.js?v=2" defer></script>
+</body>
+</html>

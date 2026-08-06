@@ -154,13 +154,6 @@ body {
   width: 370px;
   max-width: none;       /* overrides the 180px rule */
   flex-shrink: 0;        /* stops flexbox from squeezing it back down */
-
-  /*  THURTHER position adustments
-  
-  fine positioning — uncomment and tweak to nudge the bear position: relative; 
-  top: 40px;             down; negative moves up
-  left: -20px;           left; positive moves right
-  */
 }
 
 .hero .character-placeholder img {
@@ -688,4 +681,283 @@ body {
   .booth-title { font-size: 34px; }
   .strip-col { flex: 1 1 100%; max-width: 320px; }
   .countdown { font-size: 110px; }
+}
+
+/* ══ TIMER (timer.html) ══════════════════════════════ */
+/* Class names are unique to this page, so nothing here
+   affects the home page, task manager or photo booth.  */
+.timer-page {
+  min-height: 100vh;
+  padding: 130px 24px 64px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background:
+    radial-gradient(circle at 18% 18%, rgba(200,216,232,.5), transparent 45%),
+    radial-gradient(circle at 82% 78%, rgba(232,207,200,.5), transparent 45%),
+    var(--cream);
+}
+
+.timer-title {
+  font-family: var(--font-hand);
+  font-size: 46px;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 4px;
+}
+.timer-sub {
+  text-align: center;
+  color: var(--grey);
+  font-size: 15px;
+  max-width: 420px;
+  margin-bottom: 28px;
+}
+
+/* ── the dial ─────────────────────────────────────── */
+/* The ring and the digits are stacked: the SVG fills the
+   box, and .dial-face sits on top of it, centred.      */
+.timer-dial {
+  position: relative;
+  width: 300px; height: 300px;
+  max-width: 82vw; max-height: 82vw;
+  margin-bottom: 26px;
+}
+
+.ring { width: 100%; height: 100%; display: block; transform: rotate(-90deg); }
+
+.ring-track {
+  fill: none;
+  stroke: rgba(43,43,43,.10);
+  stroke-width: 12;
+}
+
+/* stroke-dasharray is set by script.js to the circle's full
+   circumference; stroke-dashoffset then hides part of that
+   dash, which is what makes the arc shrink as time passes. */
+.ring-fill {
+  fill: none;
+  stroke: var(--dark);
+  stroke-width: 12;
+  stroke-linecap: round;
+  transition: stroke-dashoffset .35s linear, stroke .4s;
+}
+.timer-dial.done .ring-fill { stroke: #6FAE7C; }
+
+.dial-face {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 6px; text-align: center; padding: 0 34px;
+  pointer-events: none;
+}
+
+.time {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 58px;
+  letter-spacing: 1px;
+  font-variant-numeric: tabular-nums;   /* stops digits jittering */
+  color: var(--dark);
+}
+.timer-dial.running .time { animation: tick 1s ease-in-out infinite; }
+@keyframes tick {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.015); }
+}
+
+.message {
+  font-family: var(--font-hand);
+  font-size: 20px;
+  color: var(--grey);
+  margin: 0;
+  min-height: 26px;
+}
+
+/* ── duration controls ────────────────────────────── */
+.adjust {
+  display: flex; align-items: center; gap: 16px;
+  margin-bottom: 16px;
+}
+.adj-btn {
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  border: 1px solid #ddd;
+  background: var(--white);
+  color: var(--dark);
+  font-size: 22px; font-weight: 600;
+  cursor: pointer; transition: .15s;
+  display: flex; align-items: center; justify-content: center;
+}
+.adj-btn:hover:not(:disabled) { transform: translateY(-2px); border-color: var(--dark); }
+.adj-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+.adj-label {
+  font-family: var(--font-display);
+  font-weight: 600; font-size: 15px;
+  color: var(--grey);
+  min-width: 110px; text-align: center;
+}
+
+.timer-presets {
+  display: flex; gap: 8px; flex-wrap: wrap;
+  justify-content: center; margin-bottom: 26px;
+}
+
+.timer-actions { display: flex; gap: 12px; }
+.timer-actions .bth { min-width: 140px; justify-content: center; }
+
+/* hide the setup controls while the clock is running */
+.timer-page.running .adjust,
+.timer-page.running .timer-presets { display: none; }
+
+@media (max-width: 767px) {
+  .timer-page { padding-top: 100px; }
+  .timer-title { font-size: 34px; }
+  .time { font-size: 46px; }
+}
+
+/* ══ TASK MANAGER (tasks.html) ═══════════════════════ */
+/* Class names are unique to this page.                 */
+.tasks-page {
+  min-height: 100vh;
+  padding: 130px 24px 80px;
+  background:
+    radial-gradient(circle at 15% 15%, rgba(200,216,232,.5), transparent 45%),
+    radial-gradient(circle at 85% 80%, rgba(232,207,200,.5), transparent 45%),
+    var(--cream);
+}
+
+.tasks-title {
+  font-family: var(--font-hand);
+  font-size: 46px; font-weight: 700;
+  text-align: center; margin-bottom: 4px;
+}
+.tasks-sub {
+  text-align: center; color: var(--grey); font-size: 15px;
+  max-width: 480px; margin: 0 auto 30px;
+}
+
+/* ── overall progress ─────────────────────────────── */
+.overall {
+  max-width: 640px; margin: 0 auto 20px;
+  background: var(--white); border-radius: 14px;
+  padding: 16px 18px; box-shadow: 0 6px 18px rgba(0,0,0,.07);
+}
+.overall-head {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 14px; font-weight: 600; color: var(--grey); margin-bottom: 10px;
+}
+.link-btn {
+  background: none; border: none; padding: 0; cursor: pointer;
+  font-family: var(--font-display); font-size: 13px; font-weight: 600;
+  color: var(--grey); text-decoration: underline;
+}
+.link-btn:hover { color: var(--dark); }
+
+.bar { height: 8px; background: rgba(43,43,43,.10); border-radius: 999px; overflow: hidden; }
+.bar-fill {
+  height: 100%; width: 0%;
+  background: var(--dark); border-radius: 999px;
+  transition: width .35s ease;
+}
+.task-card.complete .bar-fill { background: #6FAE7C; }
+
+/* ── add form ─────────────────────────────────────── */
+.add-card {
+  max-width: 640px; margin: 0 auto 26px;
+  background: var(--white); border-radius: 16px;
+  padding: 18px; box-shadow: 0 6px 18px rgba(0,0,0,.07);
+  display: flex; flex-direction: column; gap: 10px;
+}
+.add-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.add-row .bth { flex: 1 1 auto; justify-content: center; }
+
+.field {
+  font-family: var(--font-display); font-size: 15px;
+  border: 1px solid #ddd; border-radius: 10px;
+  padding: 12px 14px; width: 100%; color: var(--dark);
+  background: var(--white);
+}
+.field:focus { outline: 2px solid var(--dark); outline-offset: 1px; }
+.field-date { flex: 0 0 170px; width: auto; }
+
+/* ── one assessment ───────────────────────────────── */
+.task-list { max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+
+.task-card {
+  background: var(--white); border-radius: 16px;
+  padding: 18px; box-shadow: 0 6px 18px rgba(0,0,0,.07);
+  animation: cardIn .35s ease both;
+}
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+.task-card.complete { opacity: .72; }
+
+.card-head { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 6px; }
+.card-title {
+  font-family: var(--font-display); font-weight: 700; font-size: 18px;
+  flex: 1; word-break: break-word; cursor: text;
+}
+.task-card.complete .card-title { text-decoration: line-through; }
+
+.icon-btn {
+  background: none; border: none; cursor: pointer;
+  font-size: 15px; line-height: 1; padding: 4px 6px;
+  color: #b9b5ad; border-radius: 6px; transition: .15s;
+}
+.icon-btn:hover { color: var(--dark); background: #f2f0eb; }
+
+.due {
+  display: inline-block; font-size: 12px; font-weight: 600;
+  padding: 3px 10px; border-radius: 999px; margin-bottom: 12px;
+  background: #eef1f4; color: var(--grey);
+}
+.due.soon    { background: #FBEFD6; color: #8a6316; }
+.due.overdue { background: #F7DEDA; color: #9c3a2c; }
+.due.done    { background: #E4F1E6; color: #3f7049; }
+
+.count { font-size: 13px; color: var(--grey); margin: 10px 0 6px; }
+
+/* ── steps ────────────────────────────────────────── */
+.steps { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+
+.step {
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 8px; border-radius: 8px;
+  transition: background .15s;
+}
+.step:hover { background: #f7f5f1; }
+.step.dragging { opacity: .4; }
+.step.drop-target { background: #eceae4; }
+
+.step input[type="checkbox"] {
+  width: 18px; height: 18px; flex: 0 0 auto;
+  accent-color: var(--dark); cursor: pointer;
+}
+.step-text { flex: 1; font-size: 15px; cursor: text; word-break: break-word; }
+.step.done .step-text { text-decoration: line-through; color: #a8a49c; }
+
+.grip {
+  cursor: grab; color: #cfcac1; font-size: 14px;
+  padding: 2px 4px; user-select: none; touch-action: none;
+}
+.grip:active { cursor: grabbing; }
+
+.add-step {
+  display: flex; gap: 8px; margin-top: 10px;
+}
+.add-step .field { font-size: 14px; padding: 9px 12px; }
+.add-step .bth  { font-size: 14px; padding: 9px 18px; }
+
+.empty-note {
+  text-align: center; color: var(--grey); font-size: 15px;
+  font-family: var(--font-hand); font-size: 20px; margin-top: 30px;
+}
+
+@media (max-width: 767px) {
+  .tasks-page { padding-top: 100px; }
+  .tasks-title { font-size: 34px; }
+  .field-date { flex: 1 1 100%; }
 }
