@@ -143,12 +143,26 @@ function initPhotoBooth() {
       toast('Camera ready — press Take 4 photos.');
       return true;
     } catch (err) {
+      /* iOS has a long history of blocking the camera in home-screen
+         apps, and it forgets the permission between launches. If we're
+         running standalone on an iPhone, that's by far the most likely
+         cause — so say so, and give the workaround that actually
+         works: open the same page in Safari instead.                 */
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+                    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      const standalone = window.matchMedia('(display-mode: standalone)').matches ||
+                         navigator.standalone === true;
+
       let msg = 'Could not open the camera.';
-      if (err.name === 'NotAllowedError')      msg = 'Camera permission was blocked. Allow it in your browser settings.';
-      else if (err.name === 'NotFoundError')   msg = 'No camera found on this device.';
-      else if (location.protocol === 'file:')  msg = 'Cameras need a local server, not a file:// page.';
+      if (isIOS && standalone) {
+        msg = 'iPhones sometimes block the camera in home screen apps. Open this page in Safari instead.';
+      }
+      else if (err.name === 'NotAllowedError')      msg = 'Camera permission was blocked. Allow it in your browser settings.';
+      else if (err.name === 'NotFoundError')        msg = 'No camera found on this device.';
+      else if (location.protocol === 'file:')       msg = 'Cameras need a local server, not a file:// page.';
+
       stageMsgText.innerHTML = msg + '<br>You can still upload photos.';
-      toast(msg, 5000);
+      toast(msg, 6000);
       return false;
     }
   }
@@ -209,8 +223,12 @@ function initPhotoBooth() {
      the automatic 4-shot run, and a single retake. Note the capture
      happens on the same line the flash starts, so the photo is taken at
      the peak of the white flash, exactly like a real camera.            */
-  async function captureInto(index) {
-    shotPip.textContent = 'Shot ' + (index + 1) + ' of 4';
+  /* 'step' and 'ofN' are only for the on-screen counter. They're
+     separate from 'index' because the shots being taken may not be
+     slots 1-4 any more — if two slots are already filled by uploads,
+     this is "Shot 1 of 2" while writing into slot 3.               */
+  async function captureInto(index, step, ofN) {
+    shotPip.textContent = 'Shot ' + (step || index + 1) + ' of ' + (ofN || 4);
     shotPip.classList.add('show');
     await countTo(3);
 
@@ -237,9 +255,23 @@ function initPhotoBooth() {
      captures in the same millisecond and give four identical photos.
      'busy' is raised before the loop and lowered after, which is what
      locks the buttons for the whole ~15-second run.                     */
+  /* Fill only the EMPTY slots. The old version always ran 0,1,2,3, so
+     if you'd uploaded a photo first it got overwritten by shot one.
+     Now uploads and camera shots share the strip properly, and if
+     every slot is full it starts fresh rather than doing nothing.   */
   async function runSequence() {
+    let targets = [];
+    for (let i = 0; i < 4; i++) if (!shots[i]) targets.push(i);
+    if (!targets.length) {                      // strip full — start over
+      shots = [null, null, null, null];
+      render();
+      targets = [0, 1, 2, 3];
+    }
+
     busy = true; setButtons();
-    for (let i = 0; i < 4; i++) await captureInto(i);
+    for (let n = 0; n < targets.length; n++) {
+      await captureInto(targets[n], n + 1, targets.length);
+    }
     shotPip.classList.remove('show');
     busy = false; setButtons();
     toast('Strip complete! Download it or retake any shot.');
@@ -249,7 +281,7 @@ function initPhotoBooth() {
     if (busy) return;
     if (!stream) { const ok = await startCamera(); if (!ok) return; }
     busy = true; setButtons();
-    await captureInto(i);
+    await captureInto(i, 1, 1);
     shotPip.classList.remove('show');
     busy = false; setButtons();
   }
@@ -268,18 +300,32 @@ function initPhotoBooth() {
      The real <input type="file"> is hidden because browsers barely let
      you style it. Clicking our pretty button programmatically clicks the
      hidden input instead — a standard trick.                            */
-  uploadBtn.addEventListener('click', function () { fileInput.click(); });
+  /* null = "fill the empty slots in order". A number means a specific
+     slot asked for a photo, set by the Upload button inside that slot. */
+  let uploadTarget = null;
+
+  uploadBtn.addEventListener('click', function () {
+    uploadTarget = null;
+    fileInput.click();
+  });
 
   fileInput.addEventListener('change', async function (e) {
     const files = [].slice.call(e.target.files).filter(f => f.type.indexOf('image/') === 0);
-    if (!files.length) return;
+    if (!files.length) { uploadTarget = null; return; }
+
     let placed = 0;
     for (const f of files) {
-      const idx = shots.indexOf(null);
+      /* a slot asked by name? use it, then fall back to filling gaps
+         for any further files in the same selection */
+      let idx;
+      if (uploadTarget !== null) { idx = uploadTarget; uploadTarget = null; }
+      else                       { idx = shots.indexOf(null); }
+
       if (idx === -1) { toast('Strip is full — clear it or retake a shot.'); break; }
       try { shots[idx] = await fileToSquare(f); placed++; render(); }
       catch (err) { toast('One image could not be read.'); }
     }
+    uploadTarget = null;
     if (placed) toast('Added ' + placed + ' photo' + (placed > 1 ? 's' : '') + '.');
     /* Resetting .value matters: without it, picking the SAME file twice
        in a row fires no 'change' event, because the value didn't change. */
@@ -336,7 +382,10 @@ function initPhotoBooth() {
     slots.forEach(function (slot, i) {
       const data = shots[i];
       if (!data) {
-        slot.innerHTML = '<span class="slot-num">' + (i + 1) + '</span>';
+        /* empty slots get their own upload button, so a photo can go
+           into slot 3 without filling 1 and 2 first */
+        slot.innerHTML = '<span class="slot-num">' + (i + 1) + '</span>' +
+                         '<button class="slot-upload" data-up="' + i + '">Upload</button>';
         return;
       }
       slot.innerHTML =
@@ -544,7 +593,14 @@ function initPhotoBooth() {
      One listener, works forever, no rebinding.                          */
   stripEl.addEventListener('click', function (e) {
     const btn = e.target.closest('.retake');
-    if (btn) retake(+btn.dataset.i);
+    if (btn) { retake(+btn.dataset.i); return; }
+
+    /* per-slot upload: remember which slot asked, then open the picker */
+    const up = e.target.closest('.slot-upload');
+    if (up && !busy) {
+      uploadTarget = +up.dataset.up;
+      fileInput.click();
+    }
   });
 
   /* setButtons(): the only place button enabled/disabled state and the
@@ -631,21 +687,28 @@ function initPhotoBooth() {
         h: r.height * SCALE
       };
     };
-    const radiusOf = function (el) {
-      return parseFloat(getComputedStyle(el).borderTopLeftRadius) * SCALE || 0;
+    /* The hand-drawn look uses an eight-value border-radius, where each
+       corner is a different lopsided ellipse. Canvas can't draw that,
+       and getComputedStyle returns something like "255px 15px" — which
+       parseFloat reads as 255, ballooning the exported corners into
+       pill shapes. So the value is capped at a small fraction of the
+       box, giving gently rounded corners in the saved image.        */
+    const radiusOf = function (el, w, h) {
+      const raw = parseFloat(getComputedStyle(el).borderTopLeftRadius) * SCALE || 0;
+      return Math.min(raw, Math.min(w, h) * 0.06);
     };
 
     /* strip background, with the same rounded corners as on screen */
     const stripCss = getComputedStyle(stripEl);
     ctx.fillStyle = stripCss.backgroundColor || '#FFFFFF';
-    roundRect(ctx, 0, 0, W, H, radiusOf(stripEl));
+    roundRect(ctx, 0, 0, W, H, radiusOf(stripEl, W, H));
     ctx.fill();
 
     /* photos, drawn wherever their slots actually sit */
     for (let i = 0; i < 4; i++) {
       const p = rel(slots[i]);
       ctx.save();
-      roundRect(ctx, p.x, p.y, p.w, p.h, radiusOf(slots[i]));
+      roundRect(ctx, p.x, p.y, p.w, p.h, radiusOf(slots[i], p.w, p.h));
       ctx.clip();
       if (shots[i]) {
         const img = await loadImage(shots[i]);
@@ -880,8 +943,10 @@ function initTimer() {
 
     startBtn.textContent = running ? 'Pause' : (left === total ? 'Start' : 'Resume');
     resetBtn.disabled = running ? false : (left === total);
-    minusBtn.disabled = running || total <= MIN;
-    plusBtn.disabled  = running || total >= MAX;
+    /* only limited by the range now, not by whether the clock is
+       running — adding time mid-session is the point */
+    minusBtn.disabled = total <= MIN;
+    plusBtn.disabled  = total >= MAX;
   }
 
   /* ── THE COUNTDOWN ─────────────────────────────────
@@ -965,18 +1030,69 @@ function initTimer() {
 
   resetBtn.addEventListener('click', reset);
 
+  /* Changing the length used to be blocked while the clock ran. Now it
+     works either way:
+       stopped — set the length and reset the countdown to it
+       running — stretch or shrink the time REMAINING, and push the
+                 finish time out to match, so the current session just
+                 gets longer instead of restarting.                   */
   function setTotal(mins) {
-    if (running) return;
-    total = Math.min(MAX, Math.max(MIN, mins * 60));
-    left  = total;
+    const next = Math.min(MAX, Math.max(MIN, Math.round(mins * 60)));
+
+    if (running) {
+      const delta = next - total;
+      total = next;
+      left  = Math.max(1, left + delta);
+      endAt = Date.now() + left * 1000;     // move the finish line
+    } else {
+      total = next;
+      left  = total;
+    }
+
     document.querySelectorAll('.timer-presets .chip').forEach(function (c) {
       c.setAttribute('aria-pressed', +c.dataset.mins === total / 60);
     });
     paint();
   }
 
-  minusBtn.addEventListener('click', function () { setTotal((total - STEP) / 60); });
-  plusBtn.addEventListener('click',  function () { setTotal((total + STEP) / 60); });
+  const bump = function (dir) { setTotal((total + dir * STEP) / 60); };
+
+  /* HOLD TO REPEAT
+     A tester wanted to add twenty minutes without twenty taps. Holding
+     the button waits 450ms — long enough that a normal tap isn't
+     mistaken for a hold — then fires every 120ms until released.
+
+     Pointer events cover mouse and touch together. The 'leave' and
+     'cancel' listeners matter: without them, sliding a finger off the
+     button would leave the timer stuck adding minutes forever.      */
+  function holdToRepeat(btn, dir) {
+    let startT = null, repeatT = null;
+
+    const stop = function () {
+      clearTimeout(startT); clearInterval(repeatT);
+      startT = repeatT = null;
+    };
+
+    btn.addEventListener('pointerdown', function (e) {
+      if (btn.disabled) return;
+      e.preventDefault();
+      bump(dir);                                  // the first step is instant
+      startT = setTimeout(function () {
+        repeatT = setInterval(function () {
+          if (btn.disabled) { stop(); return; }
+          bump(dir);
+        }, 120);
+      }, 450);
+    });
+
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach(function (ev) {
+      btn.addEventListener(ev, stop);
+    });
+    window.addEventListener('blur', stop);        // tab switched mid-hold
+  }
+
+  holdToRepeat(minusBtn, -1);
+  holdToRepeat(plusBtn,  +1);
 
   document.querySelectorAll('.timer-presets .chip').forEach(function (chip) {
     chip.addEventListener('click', function () { setTotal(+chip.dataset.mins); });
@@ -1014,6 +1130,12 @@ function initTasks() {
   const toastEl    = document.getElementById('toast');
 
   const KEY = 'helpful.tasks.v1';
+
+  /* One place for the length limits, used by the add form (via the
+     maxlength attribute set below) and by the rename prompts. Having
+     the number written down twice is what let renaming exceed it.  */
+  const TITLE_MAX = 80;
+  const STEP_MAX  = 90;
 
   /* ── STATE ─────────────────────────────────────────
      One array holds everything. Each assessment looks like:
@@ -1064,12 +1186,19 @@ function initTasks() {
     today.setHours(0, 0, 0, 0);
     const days = Math.round((d - today) / 86400000);
 
-    if (complete)   return { text: 'Finished', cls: 'done' };
-    if (days < 0)   return { text: Math.abs(days) + (Math.abs(days) === 1 ? ' day overdue' : ' days overdue'), cls: 'overdue' };
-    if (days === 0) return { text: 'Due today', cls: 'soon' };
-    if (days === 1) return { text: 'Due tomorrow', cls: 'soon' };
-    if (days <= 3)  return { text: 'Due in ' + days + ' days', cls: 'soon' };
-    return { text: 'Due in ' + days + ' days', cls: '' };
+    /* "in 3 days" is easy to read but useless for planning — you still
+       have to work out which day that is. Both are shown now: the
+       countdown for urgency, the real date for planning.            */
+    const stamp = d.toLocaleDateString(undefined, {
+      weekday: 'short', day: 'numeric', month: 'short'
+    });
+
+    if (complete)   return { text: 'Finished', date: stamp, cls: 'done' };
+    if (days < 0)   return { text: Math.abs(days) + (Math.abs(days) === 1 ? ' day overdue' : ' days overdue'), date: stamp, cls: 'overdue' };
+    if (days === 0) return { text: 'Due today', date: stamp, cls: 'soon' };
+    if (days === 1) return { text: 'Due tomorrow', date: stamp, cls: 'soon' };
+    if (days <= 3)  return { text: 'Due in ' + days + ' days', date: stamp, cls: 'soon' };
+    return { text: 'Due in ' + days + ' days', date: stamp, cls: '' };
   }
 
   const esc = function (s) {
@@ -1077,6 +1206,62 @@ function initTasks() {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch];
     });
   };
+
+  /* ── PICKING A DATE ────────────────────────────────
+     A real <input type="date"> gives phones a native date wheel and
+     desktops a calendar, which beats typing. It's created, clicked and
+     thrown away each time rather than living in the page, so it can't
+     be tabbed into or styled by accident.
+
+     showPicker() is what actually opens the calendar without the user
+     having to hit the tiny icon, but Safari has been inconsistent
+     about supporting it. If it isn't there, or throws, we fall back to
+     a plain text prompt and validate the format ourselves.        */
+  function openDatePicker(current, done) {
+    const input = document.createElement('input');
+    input.type = 'date';
+
+    /* if the browser doesn't understand type="date" it silently becomes
+       a text box — that's the signal to skip straight to the fallback */
+    if (input.type !== 'date') return askForDateText(current, done);
+
+    input.value = current || '';
+    input.style.position = 'fixed';
+    input.style.opacity = '0';
+    input.style.pointerEvents = 'none';
+    document.body.appendChild(input);
+
+    let finished = false;
+    const finish = function (val) {
+      if (finished) return;
+      finished = true;
+      input.remove();
+      done(val);
+    };
+
+    input.addEventListener('change', function () { finish(input.value); });
+    input.addEventListener('blur',   function () { setTimeout(function () { finish(input.value); }, 150); });
+
+    try {
+      if (typeof input.showPicker === 'function') { input.showPicker(); }
+      else { input.focus(); input.click(); }
+    } catch (err) {
+      input.remove();
+      askForDateText(current, done);
+    }
+  }
+
+  function askForDateText(current, done) {
+    const val = prompt('Due date (YYYY-MM-DD), or leave blank to clear:', current || '');
+    if (val === null) return;                        // cancelled
+    const clean = val.trim();
+    if (clean === '') return done('');               // cleared
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(clean) || isNaN(new Date(clean + 'T00:00:00'))) {
+      toast('That date did not look right — use YYYY-MM-DD.', 4000);
+      return;
+    }
+    done(clean);
+  }
 
   /* ── DRAWING ───────────────────────────────────────── */
   function render() {
@@ -1096,9 +1281,15 @@ function initTasks() {
       card.innerHTML =
         '<div class="card-head">' +
           '<div class="card-title" data-act="rename" title="Click to rename">' + esc(t.title) + '</div>' +
-          '<button class="icon-btn" data-act="delete" title="Delete assessment">✕</button>' +
+          '<button class="icon-btn" data-act="delete" title="Delete task">✕</button>' +
         '</div>' +
-        (info ? '<span class="due ' + info.cls + '">' + info.text + '</span>' : '') +
+        /* the whole chip is a button now, so a due date can be changed
+           after the task was created — previously it was set once and
+           stuck. No date yet? Offer to add one.                     */
+        (info
+          ? '<button class="due ' + info.cls + '" data-act="due">' + esc(info.text) +
+            ' <span class="due-date">' + esc(info.date) + '</span></button>'
+          : '<button class="due due-empty" data-act="due">+ Add a due date</button>') +
         '<div class="bar"><div class="bar-fill" style="width:' + pct + '%"></div></div>' +
         '<p class="count">' + (total ? done + ' of ' + total + ' steps done' : 'No steps yet — add the first one below') + '</p>' +
         '<ul class="steps">' +
@@ -1159,7 +1350,7 @@ function initTasks() {
 
     if (act === 'delete') {
       tasks = tasks.filter(function (x) { return x.id !== t.id; });
-      save(); render(); toast('Assessment deleted.');
+      save(); render(); toast('Task deleted.');
     }
 
     if (act === 'toggle') {
@@ -1174,9 +1365,29 @@ function initTasks() {
       save(); render();
     }
 
+    if (act === 'due') {
+      /* A hidden date input is used rather than prompt(), so phones get
+         a proper date picker and there's no text to mis-type. Safari
+         is fussy about date inputs, so if the browser gives us nothing
+         usable we fall back to asking for YYYY-MM-DD as text.       */
+      openDatePicker(t.due, function (val) {
+        t.due = val || '';
+        save(); render();
+      });
+    }
+
     if (act === 'rename') {
-      const next = prompt('Rename this assessment:', t.title);
-      if (next && next.trim()) { t.title = next.trim(); save(); render(); }
+      /* prompt() has no maxlength, so the limit set on the add form was
+         easy to walk straight past when renaming. Trim to the same
+         number of characters here and say so, rather than silently
+         cutting the text off.                                        */
+      const next = prompt('Rename this task:', t.title);
+      if (next && next.trim()) {
+        const clean = next.trim();
+        t.title = clean.slice(0, TITLE_MAX);
+        if (clean.length > TITLE_MAX) toast('Shortened to ' + TITLE_MAX + ' characters.');
+        save(); render();
+      }
     }
 
     if (act === 'edit-step') {
@@ -1184,7 +1395,12 @@ function initTasks() {
       const s  = t.steps.filter(function (x) { return x.id === li.dataset.sid; })[0];
       if (!s) return;
       const next = prompt('Edit this step:', s.text);
-      if (next && next.trim()) { s.text = next.trim(); save(); render(); }
+      if (next && next.trim()) {
+        const clean = next.trim();
+        s.text = clean.slice(0, STEP_MAX);
+        if (clean.length > STEP_MAX) toast('Shortened to ' + STEP_MAX + ' characters.');
+        save(); render();
+      }
     }
   });
 
@@ -1264,3 +1480,53 @@ function initTasks() {
 }
 
 initTasks();
+
+
+/* ══ INSTALLABLE APP ═════════════════════════════════
+   Runs on every page. Two jobs: register the service worker that makes
+   the site work offline and installable, and show iOS users how to add
+   it to their home screen — Android and desktop Chrome offer that
+   themselves, but iOS has never had an install prompt, so the only way
+   is Share ▸ Add to Home Screen and most people don't know that.    */
+function initPWA() {
+  /* Service workers only run over HTTPS (or localhost), so this simply
+     does nothing when the page is opened straight off the disk.      */
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js').catch(function () {
+        /* nothing to do — the site works fine without offline support */
+      });
+    });
+  }
+
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+  /* 'standalone' means the app was opened from the home screen rather
+     than inside the browser. iOS uses its own navigator.standalone;
+     everyone else uses the display-mode media query.                 */
+  const standalone = window.matchMedia('(display-mode: standalone)').matches ||
+                     navigator.standalone === true;
+
+  let dismissed = false;
+  try { dismissed = localStorage.getItem('helpful.installHint') === 'no'; } catch (err) {}
+
+  if (!isIOS || standalone || dismissed) return;
+
+  const hint = document.createElement('div');
+  hint.className = 'install-hint';
+  hint.innerHTML =
+    '<img src="icons/apple-touch-icon.png" alt="">' +
+    '<p>Add HELPFUL to your home screen — tap <b>Share</b>, then <b>Add to Home Screen</b>.</p>' +
+    '<button aria-label="Dismiss">✕</button>';
+
+  hint.querySelector('button').addEventListener('click', function () {
+    hint.remove();
+    try { localStorage.setItem('helpful.installHint', 'no'); } catch (err) {}
+  });
+
+  /* wait a moment so it doesn't appear before the page has drawn */
+  setTimeout(function () { document.body.appendChild(hint); }, 1800);
+}
+
+initPWA();

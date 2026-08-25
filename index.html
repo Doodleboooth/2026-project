@@ -13,6 +13,19 @@
 
   <!-- Link to CSS -->
   <link rel="stylesheet" href="style.css?v=2">
+
+  <!-- ══ INSTALLABLE APP (PWA) ══════════════════════════
+       manifest = the app's name, icons and colours.
+       theme-color tints the phone's status bar.
+       The apple-* tags are iOS-only; iOS ignores the manifest for
+       home-screen apps and reads these instead.                   -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#2B2B2B">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="HELPFUL">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 </head>
 
 <body>
@@ -20,7 +33,7 @@
       <!-- ── NAV ──────────────────────────────────────────── -->
       <nav class="nav-bar">
         <div></div>
-        <span class="nav-logo">HELPFUL</span>
+        <a class="nav-logo" href="index.html" aria-label="HELPFUL — back to home">HELPFUL</a>
         <button class="hamburger" id="menuBtn" aria-label="Open menu">
           <span></span><span></span><span></span>
         </button>
@@ -182,39 +195,8 @@
     
       <!-- Bootstrap JS -->
       <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    
-      <script>
-        // ── Hamburger menu ───────────────────────────────────
-        const menuBtn   = document.getElementById('menuBtn');
-        const menuClose = document.getElementById('menuClose');
-        const sideMenu  = document.getElementById('sideMenu');
-        const overlay   = document.getElementById('overlay');
-    
-        function openMenu()  { sideMenu.classList.add('open'); overlay.classList.add('open'); }
-        function closeMenu() { sideMenu.classList.remove('open'); overlay.classList.remove('open'); }
-    
-        menuBtn.addEventListener('click', openMenu);
-        menuClose.addEventListener('click', closeMenu);
-        overlay.addEventListener('click', closeMenu);
-    
-        // ── Scroll-triggered animations ──────────────────────
-        const observer = new IntersectionObserver((entries) => {
-          entries.forEach(entry => {
-            if (entry.isIntersecting) {
-              entry.target.querySelectorAll('.animate-in').forEach(el => {
-                el.style.animationPlayState = 'running';
-              });
-            }
-          });
-        }, { threshold: 0.2 });
-    
-        document.querySelectorAll('.snap-section').forEach(section => {
-          // pause animations until section is in view
-          section.querySelectorAll('.animate-in').forEach(el => {
-            el.style.animationPlayState = 'paused';
-          });
-          observer.observe(section);
-        });
-      </script>
+      <!-- Nav and scroll animations now come from script.js,
+           which every page shares. -->
+  <script src="script.js?v=2" defer></script>
 </body>
 </html>

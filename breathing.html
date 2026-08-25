@@ -18,6 +18,19 @@
   <link rel="stylesheet" href="style.css?v=2">
 
   <!-- Photo booth styles live in style.css, under "PHOTO BOOTH" -->
+
+  <!-- ══ INSTALLABLE APP (PWA) ══════════════════════════
+       manifest = the app's name, icons and colours.
+       theme-color tints the phone's status bar.
+       The apple-* tags are iOS-only; iOS ignores the manifest for
+       home-screen apps and reads these instead.                   -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#2B2B2B">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="HELPFUL">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 </head>
 
 <body>
@@ -25,7 +38,7 @@
   <!-- ── NAV ──────────────────────────────────────────── -->
   <nav class="nav-bar">
     <div></div>
-    <span class="nav-logo">HELPFUL</span>
+    <a class="nav-logo" href="index.html" aria-label="HELPFUL — back to home">HELPFUL</a>
     <button class="hamburger" id="menuBtn" aria-label="Open menu">
       <span></span><span></span><span></span>
     </button>

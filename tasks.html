@@ -13,6 +13,19 @@
 
   <!-- Site CSS — task manager styles are in here under "TASK MANAGER" -->
   <link rel="stylesheet" href="style.css?v=2">
+
+  <!-- ══ INSTALLABLE APP (PWA) ══════════════════════════
+       manifest = the app's name, icons and colours.
+       theme-color tints the phone's status bar.
+       The apple-* tags are iOS-only; iOS ignores the manifest for
+       home-screen apps and reads these instead.                   -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#2B2B2B">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="HELPFUL">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 </head>
 
 <body>
@@ -20,7 +33,7 @@
   <!-- ── NAV ──────────────────────────────────────────── -->
   <nav class="nav-bar">
     <div></div>
-    <span class="nav-logo">HELPFUL</span>
+    <a class="nav-logo" href="index.html" aria-label="HELPFUL — back to home">HELPFUL</a>
     <button class="hamburger" id="menuBtn" aria-label="Open menu">
       <span></span><span></span><span></span>
     </button>
@@ -38,7 +51,7 @@
   <!-- ── TASK MANAGER ─────────────────────────────────── -->
   <main class="tasks-page">
     <h1 class="tasks-title">Task Manager</h1>
-    <p class="tasks-sub">Big assessments are just a pile of small steps. Write the steps down and the pile gets smaller.</p>
+    <p class="tasks-sub">Big tasks are just a pile of small steps. Write the steps down and the pile gets smaller.</p>
 
     <!-- overall progress across everything -->
     <div class="overall" id="overall" hidden>
@@ -52,10 +65,10 @@
     <!-- add a new assessment -->
     <form class="add-card" id="addForm">
       <input class="field" id="newTitle" type="text" maxlength="80"
-             placeholder="Assessment name — e.g. English 1.4 essay" required>
+             placeholder="Task name — e.g. English 1.4 essay" required>
       <div class="add-row">
         <input class="field field-date" id="newDue" type="date" aria-label="Due date">
-        <button class="bth bth-primary" type="submit">Add assessment</button>
+        <button class="bth bth-primary" type="submit">Add task</button>
       </div>
     </form>
 
@@ -63,7 +76,7 @@
     <div class="task-list" id="taskList"></div>
 
     <p class="empty-note" id="emptyNote">
-      Nothing here yet. Add your first assessment above — then break it into steps.
+      Nothing here yet. Add your first task above — then break it into steps.
     </p>
   </main>
 

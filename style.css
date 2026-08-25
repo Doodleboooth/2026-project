@@ -25,6 +25,11 @@ body {
 }
 
 /* ── NAV ────────────────────────────────────────────── */
+/* Three columns rather than space-between. The old version pushed an
+   empty div left and the hamburger right, which left the logo slightly
+   off-centre because the empty div has no width but the button does.
+   With 1fr / auto / 1fr the outer columns are always equal, so the
+   middle one is dead centre no matter how wide the button gets.     */
 .nav-bar {
   position: fixed;
   top: 0;
@@ -34,18 +39,28 @@ body {
   background: var(--white);
   border-bottom: 1px solid #eee;
   padding: 12px 24px;
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
 }
 
+/* Caveat instead of Space Grotesk, so the logo matches the hand-drawn
+   look of the illustrations and headings rather than fighting it.
+   Caveat runs smaller and tighter than Space Grotesk, so the size comes
+   down and the wide letter-spacing goes — spacing out a joined script
+   pulls the letters apart and looks broken.                         */
 .nav-logo {
-  font-family: var(--font-display);
-  font-weight: 750;
-  font-size: 50px;
-  letter-spacing: 4px;
+  grid-column: 2;
+  justify-self: center;
+  font-family: var(--font-hand);
+  font-weight: 700;
+  font-size: 63px;
+  line-height: 1;
+  letter-spacing: 1px;
   text-decoration: underline;
+  text-underline-offset: 5px;
+  text-decoration-thickness: 2px;
   color: var(--dark);
-  align-items: center;
 }
 
 /* hamburger */
@@ -57,6 +72,7 @@ body {
   flex-direction: column;
   gap: 5px;
   padding: 4px;
+  grid-column: 3;
   justify-self: end;
 }
 .hamburger span {
@@ -355,6 +371,10 @@ body {
 
 /* ── MOBILE ─────────────────────────────────────────── */
 @media (max-width: 767px) {
+  /* the logo is the tallest thing in the bar, so shrinking it is what
+     actually reclaims space on a phone */
+  .nav-logo { font-size: 32px; }
+
   .hide-mobile { display: none !important; }
   .snap-section { min-height: auto; padding-bottom: 48px; }
   html { scroll-snap-type: none; }
@@ -611,14 +631,30 @@ body {
   /* set by script.js from STICKER_W so the preview and the downloaded
      PNG can never disagree. The 22% is only a fallback.              */
   width: var(--sticker-w, 22%);
-  transform: translate(-50%, -50%);
+
+  /* translateZ(0) forces the sticker onto its own compositing layer.
+     Without it, dragging an element that has a drop-shadow leaves
+     smears of the old shadow behind — the browser repaints the new
+     position but doesn't always clear the area the shadow used to
+     cover. On desktop a scroll cleans it up; on phones it doesn't.
+     will-change tells the browser this element is about to move, so
+     it prepares the layer before the first drag rather than mid-drag. */
+  transform: translate(-50%, -50%) translateZ(0);
+  will-change: transform, left, top;
+
   cursor: grab;
   touch-action: none;
   user-select: none; -webkit-user-select: none;
   z-index: 5;
   filter: drop-shadow(0 2px 5px rgba(0,0,0,.25));
 }
-.placed.grabbing { cursor: grabbing; }
+
+/* belt and braces: drop the shadow entirely while the sticker is
+   actually moving, then bring it back on release */
+.placed.grabbing {
+  cursor: grabbing;
+  filter: none;
+}
 /* ONE PHOTO SLOT
    Four of these stack vertically to form the strip. Each is locked
    square by aspect-ratio, so the strip keeps its shape whether it
@@ -692,10 +728,22 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  background:
-    radial-gradient(circle at 18% 18%, rgba(200,216,232,.5), transparent 45%),
-    radial-gradient(circle at 82% 78%, rgba(232,207,200,.5), transparent 45%),
-    var(--cream);
+
+  /* fallback — shows if the image is missing or still loading */
+  background-color: var(--cream);
+
+  /* white veil on top of the photo so the dial and buttons stay readable.
+     Lower numbers = more of the photo shows through. .78 hid it too
+     much, so it's back down to .55 — a little stronger than the .6 it
+     started at.                                                       */
+  background-image:
+    linear-gradient(rgba(255, 255, 255, .55), rgba(255, 255, 255, .55)),
+    url('backgroundHERO.png');
+
+  background-size: cover;            /* fill the page, crop the overflow */
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;      /* stays still while the page scrolls */
 }
 
 .timer-title {
@@ -806,9 +854,12 @@ body {
 .timer-actions { display: flex; gap: 12px; }
 .timer-actions .bth { min-width: 140px; justify-content: center; }
 
-/* hide the setup controls while the clock is running */
-.timer-page.running .adjust,
+/* The adjust row now stays visible while the clock runs, so time can
+   be added mid-session. Only the presets hide, because tapping "25 min"
+   halfway through a run is far more likely to be a mistake than a
+   deliberate choice.                                                */
 .timer-page.running .timer-presets { display: none; }
+.timer-page.running .adjust { opacity: .85; }
 
 @media (max-width: 767px) {
   .timer-page { padding-top: 100px; }
@@ -821,10 +872,22 @@ body {
 .tasks-page {
   min-height: 100vh;
   padding: 130px 24px 80px;
-  background:
-    radial-gradient(circle at 15% 15%, rgba(200,216,232,.5), transparent 45%),
-    radial-gradient(circle at 85% 80%, rgba(232,207,200,.5), transparent 45%),
-    var(--cream);
+
+  /* fallback — shows if the image is missing or still loading */
+  background-color: var(--cream);
+
+  /* white veil on top of the photo so the cards and text stay readable.
+     Lower numbers = more of the photo shows through. .78 hid it too
+     much, so it's back down to .55 — a little stronger than the .6 it
+     started at.                                                       */
+  background-image:
+    linear-gradient(rgba(255, 255, 255, .55), rgba(255, 255, 255, .55)),
+    url('backgroundHERO.png');
+
+  background-size: cover;            /* fill the page, crop the overflow */
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;      /* stays still while the page scrolls */
 }
 
 .tasks-title {
@@ -885,13 +948,16 @@ body {
 .task-list { max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
 
 .task-card {
-  background: var(--white); border-radius: 16px;
-  padding: 18px; box-shadow: 0 6px 18px rgba(0,0,0,.07);
+  background: var(--white);
+  padding: 18px;
   animation: cardIn .35s ease both;
 }
+/* the end state has to include the tilt, otherwise 'transform: none'
+   here overrides the rotate set on .task-card and the card snaps
+   straight the moment the animation finishes                        */
 @keyframes cardIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to   { opacity: 1; transform: none; }
+  from { opacity: 0; transform: translateY(10px) rotate(.2deg); }
+  to   { opacity: 1; transform: rotate(.2deg); }
 }
 .task-card.complete { opacity: .72; }
 
@@ -960,4 +1026,267 @@ body {
   .tasks-page { padding-top: 100px; }
   .tasks-title { font-size: 34px; }
   .field-date { flex: 1 1 100%; }
+}
+
+/* ══ INSTALL BANNER (PWA) ════════════════════════════ */
+/* Shown only on iOS in Safari, because iOS gives no built-in
+   install prompt — the user has to do it manually.       */
+.install-hint {
+  position: fixed; left: 12px; right: 12px; bottom: 12px;
+  z-index: 350;
+  background: var(--white);
+  border: 1px solid #e3dfd7;
+  border-radius: 16px;
+  padding: 14px 16px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.16);
+  display: flex; align-items: center; gap: 12px;
+  font-size: 14px; line-height: 1.4;
+  animation: hintIn .4s ease both;
+}
+@keyframes hintIn {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: none; }
+}
+.install-hint img { width: 40px; height: 40px; border-radius: 10px; flex: 0 0 auto; }
+.install-hint p   { margin: 0; flex: 1; color: var(--dark); }
+.install-hint b   { font-weight: 700; }
+.install-hint button {
+  background: none; border: none; cursor: pointer;
+  font-size: 18px; color: #b9b5ad; padding: 4px 6px; align-self: flex-start;
+}
+
+/* ══ TIMER — DOODLE LOOK (optional) ══════════════════
+   Everything here is scoped to .timer-dial.doodle, so removing the
+   word "doodle" from the class in timer.html turns all of it off and
+   the clean version comes back. Nothing below affects any other page.
+
+   The wobble comes from an SVG filter defined in timer.html: random
+   noise is used to nudge each pixel of the line sideways, which makes
+   a perfect circle look like it was drawn by hand.                  */
+
+/* the extra sketch pass is invisible unless the doodle look is on */
+.ring-sketch { display: none; }
+
+.timer-dial.doodle .ring-sketch {
+  display: block;
+  fill: none;
+  stroke: rgba(43, 43, 43, .22);
+  stroke-width: 5;
+  stroke-linecap: round;
+  filter: url(#roughen2);
+  /* offset slightly so it reads as a second pencil pass, not a copy */
+  transform: rotate(2deg);
+  transform-origin: 50% 50%;
+}
+
+.timer-dial.doodle .ring-track {
+  stroke: rgba(43, 43, 43, .14);
+  stroke-width: 9;
+  stroke-linecap: round;
+  filter: url(#roughen);
+}
+
+.timer-dial.doodle .ring-fill {
+  stroke-width: 11;
+  filter: url(#roughen);
+}
+
+/* the whole dial sits very slightly crooked, like it was stuck on */
+.timer-dial.doodle { transform: rotate(-1.2deg); }
+
+/* handwritten digits — Caveat has a smaller x-height than Space
+   Grotesk, so the size goes up to compensate */
+.timer-dial.doodle .time {
+  font-family: var(--font-hand);
+  font-size: 78px;
+  font-weight: 700;
+  letter-spacing: 2px;
+}
+
+.timer-dial.doodle .message {
+  font-size: 21px;
+  transform: rotate(1.2deg);   /* straighten the text back up */
+}
+
+/* a soft paper-coloured disc behind the numbers so they sit on
+   something rather than floating on the background photo */
+.timer-dial.doodle .dial-face::before {
+  content: '';
+  position: absolute;
+  left: 16%; top: 16%; right: 16%; bottom: 16%;
+  background: rgba(255, 255, 255, .72);
+  border-radius: 50%;
+  z-index: -1;
+}
+
+@media (max-width: 767px) {
+  .timer-dial.doodle .time { font-size: 62px; }
+}
+
+
+
+/* ── HAND-DRAWN BOX EDGES (tasks page) ──────────────
+   All three boxes on the task manager keep their white background and
+   get a drawn-looking outline instead of a neat rounded rectangle.
+
+   The trick is border-radius with eight values instead of four. The
+   part before the slash sets the horizontal radius of each corner and
+   the part after sets the vertical, so every corner is a different
+   lopsided curve. Wildly mismatched numbers make the edge wander the
+   way a pen does.
+
+   ::after draws a second outline slightly offset and rotated, which
+   reads as the pen going round twice. It's pointer-events: none so it
+   can never block a click.                                          */
+
+.overall,
+.add-card,
+.task-card {
+  position: relative;
+  border: 2px solid var(--dark);
+  border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
+  box-shadow: 0 4px 14px rgba(0,0,0,.06);
+}
+
+.overall::after,
+.add-card::after,
+.task-card::after {
+  content: '';
+  position: absolute;
+  inset: -5px;
+  border: 2px solid var(--dark);
+  border-radius: 225px 15px 255px 15px / 15px 255px 15px 225px;
+  opacity: .22;
+  transform: rotate(-.4deg);
+  pointer-events: none;
+}
+
+/* each box leans a slightly different way, so they don't look stamped */
+.add-card  { transform: rotate(-.25deg); }
+.task-card { transform: rotate(.2deg); }
+.overall   { transform: rotate(-.15deg); }
+
+/* the completed state dimmed the whole card, which also faded the
+   outline — keep the drawn edge and fade only the contents */
+.task-card.complete { opacity: 1; }
+.task-card.complete .card-head,
+.task-card.complete .steps,
+.task-card.complete .count,
+.task-card.complete .due { opacity: .6; }
+
+/* ── HAND-DRAWN BOX EDGES (photo booth) ─────────────
+   Same lopsided border-radius as the task page: eight values instead
+   of four, so every corner curves differently and the edge wanders
+   like a pen line.                                                  */
+
+/* THE PHOTO STRIP — full treatment, matching the task cards.
+   Deliberately NOT rotated. Sticker dragging and the download both
+   measure this box with getBoundingClientRect(), which reports the
+   bounding box of a rotated element rather than the element itself.
+   A tilt here would quietly throw off both.                        */
+.strip {
+  border: 2px solid var(--dark);
+  border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
+  box-shadow: 0 4px 14px rgba(0,0,0,.08);
+}
+.strip::after {
+  content: '';
+  position: absolute;
+  inset: -5px;
+  border: 2px solid var(--dark);
+  border-radius: 225px 15px 255px 15px / 15px 255px 15px 225px;
+  opacity: .22;
+  transform: rotate(-.4deg);
+  pointer-events: none;
+}
+
+/* THE CAMERA BOX — keeps its white frame, which now reads as a
+   hand-cut photo border. The drawn line uses 'outline' rather than
+   ::after because .stage has overflow: hidden to clip the video, and
+   that would crop a pseudo-element sitting outside it. An outline is
+   drawn outside the border box and isn't clipped that way.         */
+.stage {
+  border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
+  outline: 2px solid var(--dark);
+  outline-offset: 0;
+}
+
+/* the four photo slots get a gentler version, so they look cut out
+   by hand without competing with the strip's own edge */
+.slot {
+  border-radius: 120px 8px 110px 8px / 8px 110px 8px 120px;
+}
+
+/* the logo is a link now — strip the default link styling so it looks
+   exactly as it did as a span, and give a small hover cue */
+.nav-logo {
+  text-decoration-line: underline;   /* keep the underline it always had */
+  cursor: pointer;
+  transition: opacity .15s;
+}
+.nav-logo:hover { opacity: .72; }
+
+/* per-slot upload button on empty photo slots */
+.slot-upload {
+  position: absolute; left: 50%; bottom: 12px;
+  transform: translateX(-50%);
+  background: rgba(43,43,43,.72); color: #fff;
+  border: none; border-radius: 999px;
+  font-family: var(--font-display); font-weight: 600;
+  font-size: 12px; padding: 6px 14px;
+  cursor: pointer; opacity: 0; transition: opacity .2s;
+}
+.slot:hover .slot-upload { opacity: 1; }
+/* touch devices have no hover, so keep it permanently visible there */
+@media (hover: none) {
+  .slot-upload { opacity: .9; }
+  .slot .retake { opacity: .9; }
+}
+
+/* the due chip is a button now, so it needs to look clickable */
+.due {
+  border: none;
+  font-family: var(--font-display);
+  cursor: pointer;
+  transition: filter .15s;
+  display: inline-flex; align-items: baseline; gap: 7px;
+}
+.due:hover { filter: brightness(.94); }
+.due-date { font-weight: 400; opacity: .78; }
+.due-empty {
+  background: transparent;
+  color: var(--grey);
+  border: 1px dashed #c9c5bd;
+}
+
+/* ── "what's this for?" explainer on the timer ──────── */
+.why {
+  max-width: 460px;
+  margin: -14px auto 26px;
+  font-size: 14px;
+  color: var(--grey);
+  text-align: left;
+}
+.why summary {
+  cursor: pointer;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--dark);
+  text-align: center;
+  list-style: none;
+  padding: 6px 0;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.why summary::-webkit-details-marker { display: none; }
+.why[open] summary { margin-bottom: 8px; }
+.why p { margin: 0 0 8px; line-height: 1.6; }
+.why em { font-style: normal; font-weight: 600; color: var(--dark); }
+
+/* the adjust buttons need a bigger touch target for hold-to-repeat,
+   and no text selection when held down */
+.adj-btn {
+  user-select: none; -webkit-user-select: none;
+  touch-action: manipulation;
 }
