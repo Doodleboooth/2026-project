@@ -1,1292 +1,1084 @@
-/* ── TOKENS ─────────────────────────────────────────── */
-:root {
-  --cream:   #F5F0E8;
-  --blue:    #C8D8E8;
-  --pink:    #E8CFC8;
-  --grey:    #4A4A4A;
-  --dark:    #2B2B2B;
-  --white:   #FFFFFF;
-  --font-display: 'Space Grotesk', sans-serif;
-  --font-hand:    'Caveat', cursive;
+/* ═══════════════════════════════════════════════════════
+   STREAK — a POCOBERI study kit
+   A strawberry-chocolate confectionery design language,
+   translated from packaging into interface.
+
+   PALETTE   cream paper, blush chocolate, berry red,
+             cocoa outlines, butter + leaf accents
+   SHAPES    cone · berry · scallop · seed-dot field
+   RULE      every interactive object is a candy tablet:
+             thick cocoa outline, hard offset shadow,
+             squishes when pressed.
+   ═══════════════════════════════════════════════════════ */
+
+:root{
+  --display:"Baloo 2","M PLUS Rounded 1c",system-ui,sans-serif;
+
+  /* ── colour ── */
+  --cream:#fff7ee;        /* the box's paper white   */
+  --cream-2:#ffeede;      /* panel ground            */
+  --blush:#f8b9c6;        /* pink chocolate          */
+  --blush-lt:#fdd9e1;
+  --berry:#e1323c;        /* packaging red           */
+  --berry-dk:#c02531;
+  --cocoa:#4a2b22;        /* every outline, all text */
+  --cocoa-mid:#8a5240;
+  --butter:#ffd24a;       /* the yellow panel        */
+  --leaf:#57b15a;         /* the calyx               */
+  --grass:#6cc24a;        /* the callout bubble      */
+  --sky:#3aa6e0;          /* the count badge         */
+  --seed:#ffe9b8;         /* strawberry pips         */
+  --sh1:var(--blush);     /* wordmark drop shadows   */
+  --sh2:var(--berry);
+  --scallop:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='18' viewBox='0 0 32 18'%3E%3Cpath d='M0 0h32v7a8 8 0 0 1-8 7 8 8 0 0 1-8-7 8 8 0 0 1-8 7 8 8 0 0 1-8-7Z' fill='%23e1323c'/%3E%3C/svg%3E");
+  /* the background print, swapped whole by the skin */
+  --field:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='54' height='54' viewBox='0 0 54 54'%3E%3Cg fill='%23e1323c' fill-opacity='.13'%3E%3Cellipse cx='9' cy='11' rx='2' ry='2.8' transform='rotate(-18 9 11)'/%3E%3Cellipse cx='34' cy='6' rx='2' ry='2.8' transform='rotate(14 34 6)'/%3E%3Cellipse cx='45' cy='27' rx='2' ry='2.8' transform='rotate(-8 45 27)'/%3E%3Cellipse cx='22' cy='31' rx='2' ry='2.8' transform='rotate(22 22 31)'/%3E%3Cellipse cx='5' cy='42' rx='2' ry='2.8' transform='rotate(-25 5 42)'/%3E%3Cellipse cx='31' cy='48' rx='2' ry='2.8' transform='rotate(6 31 48)'/%3E%3C/g%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='118' height='118' viewBox='0 0 118 118'%3E%3Cg fill='%23e1323c' fill-opacity='.055'%3E%3Cpath d='M30 34c9 0 17 6 17 15 0 11-10 19-17 24-7-5-17-13-17-24 0-9 8-15 17-15Z'/%3E%3Cpath d='M89 88c9 0 17 6 17 15 0 11-10 19-17 24-7-5-17-13-17-24 0-9 8-15 17-15Z'/%3E%3Cpath d='M89 12c9 0 17 6 17 15 0 11-10 19-17 24-7-5-17-13-17-24 0-9 8-15 17-15Z'/%3E%3C/g%3E%3Cg fill='%2357b15a' fill-opacity='.055'%3E%3Cpath d='M30 36c-3-6-9-9-15-9 2 6 6 9 10 10-6-1-12 0-16 4 6 3 13 2 17-1 4 3 11 4 17 1-4-4-10-5-16-4 4-1 9-4 11-10-6 0-12 3-15 9Z'/%3E%3Cpath d='M89 90c-3-6-9-9-15-9 2 6 6 9 10 10-6-1-12 0-16 4 6 3 13 2 17-1 4 3 11 4 17 1-4-4-10-5-16-4 4-1 9-4 11-10-6 0-12 3-15 9Z'/%3E%3Cpath d='M89 14c-3-6-9-9-15-9 2 6 6 9 10 10-6-1-12 0-16 4 6 3 13 2 17-1 4 3 11 4 17 1-4-4-10-5-16-4 4-1 9-4 11-10-6 0-12 3-15 9Z'/%3E%3C/g%3E%3C/svg%3E");
+
+  /* ── construction ── */
+  --line:3px solid var(--cocoa);
+  --r-panel:22px;
+  --r-card:16px;
+  --r-pill:999px;
+  --pop:5px 5px 0 var(--cocoa);
+  --pop-sm:3px 3px 0 var(--cocoa);
+
+  /* ── motion ── */
+  --spring:cubic-bezier(.34,1.56,.64,1);
+  --ease:cubic-bezier(.4,0,.2,1);
 }
 
-/* ── BASE ───────────────────────────────────────────── */
-* { box-sizing: border-box; margin: 0; padding: 0; }
+/* ═══ SKIN: MONO ════════════════════════════════════════
+   The same kit printed in one ink. Every shape, shadow and
+   animation is unchanged — only the palette swaps, so the
+   candy language still reads, just in black and white.   */
+[data-skin="mono"]{
+  --sh1:#d5d5d3;
+  --sh2:#111111;
+  --cream:#ffffff;
+  --cream-2:#f6f6f4;
+  --blush:#e4e4e1;
+  --blush-lt:#f0f0ee;
+  --berry:#111111;
+  --berry-dk:#000000;
+  --cocoa:#111111;
+  --cocoa-mid:#6a6a68;
+  --butter:#dcdcda;
+  --leaf:#2f2f2f;
+  --grass:#2a2a2a;
+  --sky:#2f2f2f;
+  --seed:#ffffff;
 
-html {
-  scroll-snap-type: y mandatory;
-  overflow-y: scroll;
+  /* plainer geometry — the roundness was half the sweetness */
+  --r-panel:10px;
+  --r-card:8px;
+  --r-pill:8px;
+  --pop:4px 4px 0 var(--cocoa);
+  --pop-sm:3px 3px 0 var(--cocoa);
+
+  --field:none;                    /* no strawberry print   */
+  --scallop:none;                  /* no scalloped lid      */
+  --display:"Inter","Helvetica Neue",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+[data-skin="mono"] body{
+  font-family:var(--display);
+  font-weight:500;
+}
+/* a flat rule where the scallop was */
+[data-skin="mono"] .panel::before{
+  height:7px;background:var(--cocoa);background-image:none;
+}
+/* the wordmark stops shouting */
+[data-skin="mono"] h1{
+  -webkit-text-stroke:0;
+  color:var(--cocoa);
+  letter-spacing:-.03em;
+  text-shadow:none;
+}
+[data-skin="mono"] .brandline{border-radius:6px;letter-spacing:.24em}
+[data-skin="mono"] .brandline .dot{background:var(--cream);width:5px;height:5px}
+[data-skin="mono"] .tab{transform:none;border-radius:5px;background:var(--cream)}
+[data-skin="mono"] .task-panel > .sub{transform:none;border-radius:6px}
+
+/* the cute cast sits this one out */
+[data-skin="mono"] .floaters,
+[data-skin="mono"] .mascot,
+[data-skin="mono"] .bubble,
+[data-skin="mono"] .lucky,
+[data-skin="mono"] .rider,
+[data-skin="mono"] .cheer-beri,
+[data-skin="mono"] .scribble .jp,
+[data-skin="mono"] .maker.jp,
+[data-skin="mono"] .brandline .dot,
+[data-skin="mono"] .foot .sweet{display:none}
+
+/* checkbox: a plain tick instead of a stamped cone */
+[data-skin="mono"] .tick svg{display:none}
+[data-skin="mono"] .tick::after{
+  content:"";
+  width:38%;height:64%;
+  border:solid var(--cream);border-width:0 3px 3px 0;
+  transform:translateY(-9%) rotate(45deg) scale(.2);
+  opacity:0;transition:opacity .16s,transform .3s var(--spring);
+}
+[data-skin="mono"] .done > .row > .tick,
+[data-skin="mono"] .step.done .tick{background:var(--cocoa)}
+[data-skin="mono"] .done > .row > .tick::after,
+[data-skin="mono"] .step.done .tick::after{opacity:1;transform:translateY(-9%) rotate(45deg) scale(1)}
+[data-skin="mono"] .tick.part{background:var(--blush)}
+[data-skin="mono"] .tick.part::after{opacity:.45;border-color:var(--cocoa);transform:translateY(-9%) rotate(45deg) scale(.85)}
+
+/* streak day: a filled square, no strawberry */
+[data-skin="mono"] .day .box svg{display:none}
+[data-skin="mono"] .day.on .box{background:var(--cocoa)}
+[data-skin="mono"] .day.is-today .box{box-shadow:0 0 0 3px var(--cocoa-mid)}
+
+/* flat bars instead of candy stripes */
+[data-skin="mono"] .fill{background:var(--cocoa-mid);border-right-color:var(--cocoa);animation:none}
+[data-skin="mono"] .fill.full{background:var(--cocoa)}
+[data-skin="mono"] .group-bar span{background:var(--cocoa)}
+[data-skin="mono"] .group-head{background:var(--blush)}
+[data-skin="mono"] .steps{border-left-style:solid;border-left-color:var(--blush)}
+
+*{box-sizing:border-box;margin:0;padding:0}
+
+html,body{height:100%}
+html{overflow:hidden}
+
+body{
+  position:relative;
+  display:flex;flex-direction:column;
+  height:100dvh;overflow:hidden;
+  font-family:"M PLUS Rounded 1c","Baloo 2",system-ui,-apple-system,"Segoe UI",sans-serif;
+  font-weight:500;
+  color:var(--cocoa);
+  background:var(--cream);
+  padding:clamp(18px,2.4vw,30px) clamp(20px,4vw,44px) clamp(10px,1.6vw,18px);
+  -webkit-font-smoothing:antialiased;
+  -webkit-tap-highlight-color:transparent;
 }
 
-body {
-  font-family: var(--font-display);
-  background-color: var(--white);
-  color: var(--dark);
+/* ── the seed-dot field ──────────────────────────────────
+   the packaging's strawberry print, reduced to its seeds  */
+body::before{
+  content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:var(--field);
+  background-size:54px 54px, 96px 96px;
+}
+body > *{position:relative;z-index:1}
+
+.sprite{position:absolute;width:0;height:0;overflow:hidden}
+
+/* ── motif fills (used by every <use>) ─────────────────── */
+.cone-choc{fill:var(--cocoa-mid)}
+.cone-pink{fill:var(--blush)}
+.cone-line{fill:none;stroke:var(--cocoa);stroke-width:5;stroke-linejoin:round}
+.berry-body{fill:var(--berry)}
+.berry-line{fill:none;stroke:var(--cocoa);stroke-width:5;stroke-linejoin:round}
+.berry-leaf{fill:var(--leaf);stroke:var(--cocoa);stroke-width:3;stroke-linejoin:round}
+.berry-seeds{fill:var(--seed)}
+.beri-leaf{fill:var(--leaf);stroke:var(--cocoa);stroke-width:3}
+.beri-face{fill:var(--cocoa)}
+.beri-smile{fill:none;stroke:var(--cocoa);stroke-width:3;stroke-linecap:round}
+.beri-blush{fill:var(--berry);opacity:.5}
+
+/* ═══ HEADER / BRAND LOCKUP ═════════════════════════════ */
+.top{flex:0 0 auto;text-align:center;margin-bottom:clamp(14px,2vw,24px)}
+
+.brandline{
+  display:inline-flex;align-items:center;gap:9px;
+  padding:5px 16px;margin-bottom:10px;
+  background:var(--berry);color:var(--cream);
+  border:var(--line);border-radius:var(--r-pill);
+  box-shadow:var(--pop-sm);
+}
+.maker{
+  font-size:.72rem;font-weight:800;letter-spacing:.22em;
+  text-transform:uppercase;
+}
+.maker.jp{letter-spacing:.08em}
+.brandline .dot{
+  width:7px;height:7px;border-radius:50%;
+  background:var(--butter);
 }
 
-/* ── NAV ────────────────────────────────────────────── */
-/* Three columns rather than space-between. The old version pushed an
-   empty div left and the hamburger right, which left the logo slightly
-   off-centre because the empty div has no width but the button does.
-   With 1fr / auto / 1fr the outer columns are always equal, so the
-   middle one is dead centre no matter how wide the button gets.     */
-.nav-bar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  z-index: 100; /* how above the item is, so it stays above other items */
-  background: var(--white);
-  border-bottom: 1px solid #eee;
-  padding: 12px 24px;
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
+.lockup{display:flex;align-items:center;justify-content:center;gap:clamp(8px,2vw,18px)}
+
+.mascot{
+  width:clamp(46px,8vw,74px);aspect-ratio:1;
+  background:none;border:none;cursor:pointer;padding:0;
+  animation:bob 3.4s ease-in-out infinite;
+  transform-origin:50% 90%;
+}
+.mascot svg{width:100%;height:100%;display:block}
+.mascot:hover{animation:wiggle .5s var(--ease) infinite}
+.mascot.spin{animation:tumble .8s var(--spring)}
+
+h1{
+  font-family:var(--display);
+  font-size:clamp(2.8rem,9vw,5.4rem);
+  font-weight:800;letter-spacing:-.02em;line-height:.95;
+  color:var(--cream);
+  -webkit-text-stroke:4px var(--cocoa);
+  paint-order:stroke fill;
+  text-shadow:5px 5px 0 var(--sh1), 10px 10px 0 var(--sh2);
+}
+.scribble{
+  margin-top:.7em;
+  font-size:clamp(.82rem,2.4vw,1rem);font-weight:700;
+  color:var(--cocoa-mid);letter-spacing:.02em;
 }
 
-/* Caveat instead of Space Grotesk, so the logo matches the hand-drawn
-   look of the illustrations and headings rather than fighting it.
-   Caveat runs smaller and tighter than Space Grotesk, so the size comes
-   down and the wide letter-spacing goes — spacing out a joined script
-   pulls the letters apart and looks broken.                         */
-.nav-logo {
-  grid-column: 2;
-  justify-self: center;
-  font-family: var(--font-hand);
-  font-weight: 700;
-  font-size: 63px;
-  line-height: 1;
-  letter-spacing: 1px;
-  text-decoration: underline;
-  text-underline-offset: 5px;
-  text-decoration-thickness: 2px;
-  color: var(--dark);
+/* the skin switcher — two little sample chips */
+.skins{
+  display:inline-flex;gap:5px;margin:0 0 9px 8px;
+  padding:3px;background:var(--cream-2);
+  border:2px solid var(--cocoa);border-radius:var(--r-pill);
+  box-shadow:2px 2px 0 var(--cocoa);
+  vertical-align:middle;
+}
+.skin{
+  cursor:pointer;font-family:inherit;
+  display:inline-flex;align-items:center;gap:5px;
+  padding:.16em .6em .16em .3em;
+  font-size:.66rem;font-weight:800;letter-spacing:.04em;
+  color:var(--cocoa-mid);background:transparent;
+  border:2px solid transparent;border-radius:var(--r-pill);
+  transition:background .18s,color .18s,transform .14s var(--spring);
+}
+.skin:hover{transform:translateY(-1px);color:var(--cocoa)}
+.skin[aria-pressed="true"]{
+  background:var(--cream);color:var(--cocoa);
+  border-color:var(--cocoa);
+}
+.chipdot{
+  width:14px;height:14px;border-radius:50%;
+  border:2px solid var(--cocoa);display:block;
+}
+.chipdot.candy{background:linear-gradient(135deg,#f8b9c6 50%,#e1323c 50%)}
+.chipdot.mono{background:linear-gradient(135deg,#ffffff 50%,#1c1c1c 50%)}
+
+/* the mascot's callout, like the pack's green flash */
+.bubble{
+  position:relative;align-self:center;
+  margin-left:6px;
+  padding:.5em .95em;
+  font-size:.8rem;font-weight:800;line-height:1.2;
+  color:var(--cream);background:var(--grass);
+  border:3px solid var(--cocoa);
+  border-radius:18px 20px 16px 22px;
+  box-shadow:var(--pop-sm);
+  transform:rotate(-3deg);
+  animation:bubble-in .5s var(--spring) backwards .5s;
+  max-width:15ch;
+}
+.bubble::after{                       /* the tail, pointing at Beri-chan */
+  content:"";position:absolute;left:-11px;top:52%;
+  width:0;height:0;
+  border:7px solid transparent;border-right-color:var(--cocoa);
+}
+.bubble.swap{animation:hop .45s var(--spring)}
+
+/* ═══ PANELS ════════════════════════════════════════════
+   a box lid: scalloped berry band, flavour tab, thick edge */
+.board{
+  flex:1 1 auto;min-height:0;
+  display:grid;grid-template-columns:1fr 1fr;
+  gap:clamp(16px,2.2vw,26px);
+  max-width:1180px;width:100%;margin:0 auto;
+  align-items:stretch;
+}
+.col{display:flex;flex-direction:column;gap:clamp(16px,2.2vw,26px);min-height:0}
+.col.left{justify-content:flex-start}
+.col.left .panel{flex:0 0 auto}
+/* the task box takes the column and scrolls inside itself */
+.col.right .task-panel{
+  flex:1 1 auto;min-height:0;
+  display:flex;flex-direction:column;overflow:hidden;
+}
+.col.right .task-panel > h2,
+.col.right .task-panel > .sub,
+.col.right .task-panel > .progress,
+.col.right .task-panel > #addGroupForm,
+.col.right .task-panel > .clear-row{flex:0 0 auto}
+.col.right .group-list{
+  flex:1 1 auto;min-height:0;
+  overflow-y:auto;padding:2px 6px 4px 2px;
+}
+.col.right .clear-row{margin-top:auto}
+
+.panel{
+  position:relative;
+  background:var(--cream-2);
+  border:var(--line);border-radius:var(--r-panel);
+  box-shadow:var(--pop);
+  padding:clamp(26px,3vw,34px) clamp(16px,2.6vw,28px) clamp(16px,2.2vw,24px);
+  overflow:hidden;
+  animation:panel-in .6s var(--spring) backwards;
+}
+.col.left  .panel:nth-child(1){animation-delay:.05s}
+.col.left  .panel:nth-child(2){animation-delay:.13s}
+.col.right .panel{animation-delay:.09s}
+
+/* the scalloped band across every lid */
+.panel::before{
+  content:"";position:absolute;top:0;left:0;right:0;height:18px;
+  background-image:var(--scallop);
+  background-size:32px 18px;background-repeat:repeat-x;
 }
 
-/* hamburger */
-.hamburger {
-  background: none;
-  border: none;
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  padding: 4px;
-  grid-column: 3;
-  justify-self: end;
-}
-.hamburger span {
-  display: block;
-  width: 35px;
-  height: 7px;
-  background: var(--dark);
-  border-radius: 2px;
-  transition: 0.3s;
+/* the little flavour tab, like a pack's variety label */
+.tab{
+  position:absolute;top:24px;right:18px;
+  font-size:.6rem;font-weight:800;letter-spacing:.18em;
+  padding:3px 10px;
+  background:var(--butter);color:var(--cocoa);
+  border:2px solid var(--cocoa);border-radius:var(--r-pill);
+  transform:rotate(3deg);
 }
 
-/* slide-out menu */
-.side-menu {
-  position: fixed;
-  top: 0; right: -260px;
-  width: 260px;
-  height: 100%;
-  background: var(--white);
-  border-left: 1px solid #eee;
-  z-index: 200;
-  padding: 32px 24px;
-  transition: right 0.3s ease;
+h2{
+  font-family:var(--display);
+  font-size:clamp(1.35rem,3vw,1.85rem);
+  font-weight:800;letter-spacing:-.01em;color:var(--berry);
 }
-.side-menu.open { right: 0; }
-
-.side-menu a {
-  display: block;
-  font-family: var(--font-display);
-  font-weight: 600;
-  font-size: 18px;
-  color: var(--dark);
-  text-decoration: none;
-  padding: 12px 0;
-  border-bottom: 1px solid #eee;
+.sub{
+  font-size:.9rem;font-weight:500;color:var(--cocoa-mid);
+  margin-top:.25em;
 }
-.side-menu a:hover { color: var(--grey); }
-
-.menu-close {
-  background: none;
-  border: none;
-  font-size: 24px;
-  cursor: pointer;
-  margin-bottom: 24px;
-  color: var(--dark);
+.hint{
+  font-size:.88rem;font-weight:700;color:var(--cocoa-mid);
+  margin-top:.9em;min-height:1.4em;
+}
+.foot{
+  flex:0 0 auto;text-align:center;margin-top:clamp(10px,1.4vw,16px);
+  font-size:.72rem;font-weight:700;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--cocoa-mid);opacity:.75;
 }
 
-.overlay {
-  display: none;
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.2);
-  z-index: 150;
+/* ═══ CANDY TABLETS (buttons) ═══════════════════════════ */
+.btn{
+  cursor:pointer;font-family:inherit;
+  font-size:.95rem;font-weight:800;letter-spacing:.01em;
+  padding:.62em 1.5em;
+  background:var(--cream);color:var(--cocoa);
+  border:var(--line);border-radius:var(--r-pill);
+  box-shadow:var(--pop-sm);
+  transition:transform .14s var(--spring),box-shadow .14s var(--ease),background .18s;
 }
-.overlay.open { display: block; }
-
-/* ── SECTIONS (scroll snap) ─────────────────────────── */
-.snap-section {
-  scroll-snap-align: start;
-  min-height: 100vh;
-  padding-top: 60px;
-  display: flex;
-  align-items: center;
-  position: relative;
-  overflow: hidden;
+.btn:hover{transform:translate(-1px,-2px) rotate(-1.5deg);box-shadow:5px 6px 0 var(--cocoa)}
+.btn:active{transform:translate(3px,3px) scale(.97);box-shadow:0 0 0 var(--cocoa)}
+.btn.primary{background:var(--blush)}
+.btn.primary:hover{background:var(--blush-lt)}
+.btn.small{font-size:.85rem;padding:.52em 1.1em}
+.btn.ghost{background:transparent}
+.btn.ghost:hover{background:var(--cream)}
+.btn:disabled{
+  opacity:.42;cursor:not-allowed;transform:none;
+  box-shadow:var(--pop-sm);background:var(--cream);
 }
-
-/* ── HERO ───────────────────────────────────────────── */
-/* Only this section gets the auto-cropping background image.
-   Sections 2-4 keep their plain background colours.            */
-.hero {
-  /* fallback colour — shows if the image is missing or still loading */
-  background-color: var(--white);
-
-  /* two stacked layers: the white veil sits ON TOP of the photo,
-     so the dark hero text stays readable on any image            */
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.294), rgba(255, 255, 255, 0.55)),
-    url('backgroundHERO3.png');
-
-  background-size: cover;              /* fill the section, crop the overflow */
-  background-position: center center;  /* which part of the image survives */
-  background-repeat: no-repeat;
-
-  display: flex;
-  align-items: stretch;
-  padding-top: 56px;
-  overflow: hidden;
-  min-height: 100vh;
+.btn.danger{border-color:var(--berry);color:var(--berry);box-shadow:3px 3px 0 var(--berry)}
+.btn.danger:hover{background:var(--berry);color:var(--cream);border-color:var(--cocoa);box-shadow:var(--pop-sm)}
+.btn.danger.armed{
+  background:var(--berry);color:var(--cream);border-color:var(--cocoa);
+  box-shadow:var(--pop-sm);animation:nudge-shake .45s var(--ease) 2;
 }
 
-.hero .character-placeholder {
-  background: none;
-  border-radius: 0;
-  aspect-ratio: auto;    /* let the image set its own height */
-  width: 370px;
-  max-width: none;       /* overrides the 180px rule */
-  flex-shrink: 0;        /* stops flexbox from squeezing it back down */
+/* ═══ TIMER ═════════════════════════════════════════════ */
+.timer-panel{text-align:center}
+.clock-row{display:flex;align-items:center;justify-content:center;gap:clamp(8px,2vw,16px)}
+.clock{
+  font-family:var(--display);
+  font-size:clamp(2.9rem,9vw,4.8rem);
+  font-weight:800;letter-spacing:-.03em;line-height:1;
+  margin:.2em 0 .3em;
+  font-variant-numeric:tabular-nums;
+  color:var(--cocoa);
+}
+.clock.running{color:var(--berry);animation:breathe 2s var(--ease) infinite}
+.clock.done{color:var(--leaf);animation:pulse .9s var(--spring) 3}
+
+.nudge{
+  flex:0 0 auto;cursor:pointer;
+  width:46px;height:46px;
+  font-family:inherit;font-size:1.5rem;font-weight:800;line-height:1;
+  background:var(--butter);color:var(--cocoa);
+  border:var(--line);border-radius:15px;
+  box-shadow:var(--pop-sm);
+  display:flex;align-items:center;justify-content:center;
+  transition:transform .14s var(--spring),box-shadow .14s var(--ease);
+}
+.nudge:hover{transform:translateY(-2px) rotate(-3deg);box-shadow:4px 5px 0 var(--cocoa)}
+.nudge:active{transform:translate(3px,3px) scale(.94);box-shadow:0 0 0 var(--cocoa)}
+.nudge:disabled{opacity:.35;cursor:not-allowed;transform:none;box-shadow:var(--pop-sm)}
+
+.preset-row{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:18px}
+.chip{
+  cursor:pointer;font-family:inherit;font-size:.88rem;font-weight:700;
+  padding:.42em 1em;
+  background:var(--cream);color:var(--cocoa);
+  border:2px solid var(--cocoa);border-radius:var(--r-pill);
+  transition:background .18s,transform .16s var(--spring);
+}
+.chip .cs{display:none}
+.chip:hover{background:var(--blush-lt);transform:translateY(-2px)}
+.chip.active{background:var(--butter);box-shadow:var(--pop-sm);animation:hop .4s var(--spring)}
+
+.btn-row{display:flex;gap:10px;justify-content:center}
+
+/* the chime toggle, a small tablet under the timer */
+.sound-btn{
+  cursor:pointer;font-family:inherit;
+  display:inline-flex;align-items:center;gap:6px;
+  margin-top:10px;padding:.3em .8em;
+  font-size:.74rem;font-weight:800;letter-spacing:.02em;
+  background:var(--butter);color:var(--cocoa);
+  border:2px solid var(--cocoa);border-radius:var(--r-pill);
+  box-shadow:2px 2px 0 var(--cocoa);
+  transition:transform .14s var(--spring),background .18s,opacity .18s;
+}
+.sound-btn .sico{font-size:.95rem;line-height:1}
+.sound-btn:hover{transform:translateY(-2px) rotate(-2deg)}
+.sound-btn:active{transform:translate(2px,2px);box-shadow:0 0 0 var(--cocoa)}
+.sound-btn.off{background:var(--cream);color:var(--cocoa-mid);opacity:.75}
+.sound-btn.off .sico{text-decoration:line-through}
+.sound-btn.ring{animation:hop .5s var(--spring) 3}
+
+/* ═══ STREAK ════════════════════════════════════════════ */
+.week-row{display:flex;gap:10px;justify-content:space-between;margin:20px 0 4px;flex-wrap:wrap}
+.day{
+  flex:1;min-width:44px;
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+  cursor:pointer;background:none;border:none;font-family:inherit;
+}
+/* an empty sweet wrapper, waiting for its berry */
+.day .box{
+  position:relative;
+  width:100%;aspect-ratio:1;max-width:54px;
+  border:var(--line);border-radius:14px;background:var(--cream);
+  display:flex;align-items:center;justify-content:center;
+  transition:background .2s,transform .18s var(--spring);
+}
+.day .box svg{width:76%;height:76%;opacity:0;transform:scale(.3) rotate(-25deg);
+  transition:opacity .2s,transform .35s var(--spring)}
+.day:hover .box{transform:translateY(-3px) rotate(-3deg)}
+.day.on .box{background:var(--blush-lt)}
+.day.on .box svg{opacity:1;transform:scale(1) rotate(0)}
+.day.is-today .box{box-shadow:0 0 0 3px var(--butter),var(--pop-sm)}
+.day .lab{font-size:.78rem;font-weight:700;color:var(--cocoa-mid)}
+
+.streak-stats{display:flex;gap:14px;justify-content:space-around;margin-top:22px;flex-wrap:wrap}
+.stat{display:flex;flex-direction:column;align-items:center}
+.stat .big{
+  font-family:var(--display);
+  font-size:2.3rem;font-weight:800;line-height:1;color:var(--berry);
+}
+.stat .lbl{font-size:.76rem;font-weight:700;color:var(--cocoa-mid);margin-top:.25em}
+.stat .ls{display:none}
+
+/* the pack's blue quantity badge, reused as the task count */
+.task-panel > .sub{
+  display:inline-block;
+  margin-top:.5em;padding:.3em .85em;
+  font-size:.82rem;font-weight:800;letter-spacing:.01em;
+  color:var(--cream);background:var(--sky);
+  border:3px solid var(--cocoa);border-radius:var(--r-pill);
+  box-shadow:var(--pop-sm);
+  transform:rotate(-1.5deg);
 }
 
-.hero .character-placeholder img {
-  width: 100%;
-  height: auto;
-  display: block;        /* kills the stray gap under the image */
+/* the "lucky star" flash from the pack, earned by ticking today */
+.lucky{
+  position:absolute;top:40px;right:14px;
+  display:flex;flex-direction:column;align-items:center;gap:0;
+  width:66px;
+  animation:star-in .6s var(--spring);
+}
+.lucky[hidden]{display:none}
+.lucky svg{width:38px;height:38px}
+.lucky .star{fill:var(--butter);stroke:var(--cocoa);stroke-width:5;stroke-linejoin:round}
+.lucky .rays{stroke:var(--berry);stroke-width:6;stroke-linecap:round;
+  animation:spin 9s linear infinite;transform-origin:50% 50%}
+.lucky span{
+  font-size:.6rem;font-weight:800;letter-spacing:.06em;
+  color:var(--cream);background:var(--berry);
+  border:2px solid var(--cocoa);border-radius:var(--r-pill);
+  padding:1px 7px;transform:rotate(-4deg);white-space:nowrap;
 }
 
-.hero-text {
-  flex: 0 0 42%;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  padding: 48px 32px 48px 60px;
-  position: relative;
-  z-index: 2;
+/* music notes that pop off a task as you tick it */
+.note{
+  position:fixed;z-index:55;pointer-events:none;
+  font-size:1.1rem;font-weight:800;color:var(--berry);
+  animation:note-up .9s var(--ease) forwards;
 }
 
-.hero-tagline {
-  font-family: var(--font-hand);
-  font-size: 56px;
-  font-weight: 700;
-  line-height: 1.15;
-  margin-bottom: 20px;
-  color: var(--dark);
+/* ═══ PROGRESS — a candy tube ═══════════════════════════ */
+.progress{display:flex;align-items:center;gap:14px;margin:18px 0 4px}
+.bar{
+  position:relative;flex:1;height:26px;
+  background:var(--cream);
+  border:var(--line);border-radius:var(--r-pill);
+  overflow:visible;
+}
+.fill{
+  height:100%;width:0%;
+  border-radius:var(--r-pill) 0 0 var(--r-pill);
+  background:
+    repeating-linear-gradient(115deg,
+      var(--blush) 0 12px, var(--blush-lt) 12px 24px);
+  background-size:34px 100%;
+  border-right:3px solid var(--cocoa);
+  transition:width .5s var(--spring),background-color .3s;
+  animation:stripe-roll 1.1s linear infinite;
+}
+.fill.empty{border-right:none;animation:none}
+.fill.full{
+  border-right:none;border-radius:var(--r-pill);
+  background:repeating-linear-gradient(115deg,
+    var(--leaf) 0 12px, #7fca80 12px 24px);
+  background-size:34px 100%;
+}
+/* the cone rides along the top of the fill */
+.rider{
+  position:absolute;top:-16px;left:0;
+  width:30px;height:30px;
+  transform:translateX(-50%);
+  transition:left .5s var(--spring);
+  pointer-events:none;
+}
+.rider.hidden{opacity:0}
+.rider.cheer{animation:tumble .7s var(--spring)}
+.pct{
+  font-family:var(--display);
+  font-size:1.5rem;font-weight:800;min-width:3.6ch;text-align:right;
+  color:var(--cocoa);
+}
+.pct.full{color:var(--leaf)}
+
+/* ═══ INPUTS ════════════════════════════════════════════ */
+.add-row{display:flex;gap:10px;margin:18px 0}
+.add-row input{
+  flex:1;min-width:0;font-family:inherit;font-size:.95rem;font-weight:500;color:var(--cocoa);
+  background:var(--cream);border:var(--line);border-radius:var(--r-pill);
+  padding:.62em 1.2em;outline:none;
+  transition:box-shadow .18s var(--ease),transform .18s var(--ease);
+}
+.add-row input:focus{box-shadow:var(--pop-sm);transform:translateY(-1px)}
+.add-row input::placeholder{color:var(--cocoa-mid);opacity:.7}
+
+/* ═══ GROUPS › TASKS › STEPS ════════════════════════════ */
+.group-list{display:flex;flex-direction:column;gap:14px;margin-bottom:18px}
+.group-list > .group{flex:0 0 auto}
+
+.group{
+  background:var(--cream);border:var(--line);border-radius:var(--r-card);
+  box-shadow:var(--pop-sm);overflow:hidden;
+}
+.group.pop{animation:panel-in .45s var(--spring)}
+.group-head{
+  display:flex;align-items:center;gap:10px;
+  padding:11px 14px;background:var(--blush);
+  border-bottom:var(--line);
+}
+.group.collapsed .group-head{border-bottom:none}
+.caret{
+  background:none;border:none;cursor:pointer;padding:0;
+  font-size:.8rem;line-height:1;color:var(--cocoa);
+  transition:transform .22s var(--spring);
+}
+.group.collapsed .caret{transform:rotate(-90deg)}
+.group-name{flex:1;font-weight:800;font-size:1rem;word-break:break-word}
+.group-prog{font-size:.85rem;font-weight:800;color:var(--cocoa);opacity:.65;white-space:nowrap}
+.group-body{padding:12px 14px;display:flex;flex-direction:column;gap:10px}
+.group.collapsed .group-body{display:none}
+
+/* the group's own progress, as a thin candy stripe */
+.group-bar{height:8px;background:var(--cream-2);border-bottom:var(--line)}
+.group.collapsed .group-bar{border-bottom:none}
+.group-bar span{
+  display:block;height:100%;width:0%;
+  background:repeating-linear-gradient(115deg,
+    var(--berry) 0 6px, var(--berry-dk) 6px 12px);
+  transition:width .45s var(--spring);
 }
 
-.hero-tagline span {
-  text-decoration: underline;
-  text-underline-offset: 6px;
+.task{
+  background:var(--cream-2);border:2px solid var(--cocoa);border-radius:12px;
+  padding:9px 12px;
+  transition:transform .16s var(--spring),background .18s;
+}
+.task:hover{transform:translateX(2px)}
+.row{display:flex;align-items:center;gap:10px}
+
+/* checkbox = a wrapper square that a cone gets stamped into */
+.tick{
+  position:relative;flex:0 0 auto;
+  width:30px;height:30px;cursor:pointer;
+  border:2px solid var(--cocoa);border-radius:9px;background:var(--cream);
+  display:flex;align-items:center;justify-content:center;
+  transition:background .2s,transform .16s var(--spring);
+  overflow:hidden;
+}
+/* the cone gets stamped into the wrapper when a task is done */
+.tick svg{
+  width:80%;height:80%;
+  opacity:0;transform:scale(.2) rotate(-30deg);
+  transition:opacity .18s,transform .38s var(--spring);
+}
+.tick:hover{transform:scale(1.08) rotate(-4deg)}
+.done > .row > .tick,
+.step.done .tick{background:var(--blush-lt)}
+.done > .row > .tick svg,
+.step.done .tick svg{opacity:1;transform:scale(1) rotate(0)}
+.tick.part{background:var(--blush-lt)}
+.tick.part svg{opacity:.45;transform:scale(.82) rotate(0)}
+
+.name{flex:1;font-size:.98rem;font-weight:500;word-break:break-word}
+.done > .row > .name,
+.step.done .name{text-decoration:line-through;color:var(--cocoa-mid);opacity:.75}
+.mini{
+  background:none;border:none;cursor:pointer;line-height:1;
+  color:var(--cocoa-mid);padding:0 3px;font-family:inherit;font-weight:800;
+  transition:transform .16s var(--spring),color .18s;
+}
+.mini:hover{color:var(--berry);transform:scale(1.25) rotate(8deg)}
+.mini.del{font-size:1.2rem}
+.group-head .mini.del{font-size:1rem}
+.mini.plus{font-size:1.1rem}
+.caret:hover{color:var(--berry)}
+
+/* steps hang off a dotted candy string */
+.steps{
+  list-style:none;margin:10px 0 0 14px;padding-left:14px;
+  border-left:3px dotted var(--blush);
+  display:flex;flex-direction:column;gap:8px;
+}
+.step{display:flex;align-items:center;gap:9px}
+.step .tick{width:24px;height:24px;border-radius:8px}
+.step .name{font-size:.9rem}
+
+.step-add,.task-add{display:flex;gap:8px;margin-top:2px}
+.step-add input,.task-add input{
+  flex:1;min-width:0;font-family:inherit;color:var(--cocoa);
+  background:var(--cream);border:2px solid var(--cocoa);border-radius:var(--r-pill);
+  padding:.4em .9em;outline:none;font-size:.88rem;font-weight:500;
+}
+.step-add input::placeholder,.task-add input::placeholder{color:var(--cocoa-mid);opacity:.65}
+.step-add button,.task-add button{
+  cursor:pointer;font-family:inherit;font-size:.82rem;font-weight:800;
+  background:var(--blush);border:2px solid var(--cocoa);border-radius:var(--r-pill);
+  padding:.4em .95em;color:var(--cocoa);
+  transition:transform .14s var(--spring),background .18s;
+}
+.step-add button:hover,.task-add button:hover{background:var(--butter);transform:translateY(-2px)}
+.task-add input{font-size:.92rem}
+
+.clear-row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.group-list:empty + .clear-row .btn{display:none}
+
+/* a freshly added group or task flashes butter-yellow */
+@keyframes just-added{
+  0%  {transform:scale(.94);box-shadow:0 0 0 5px var(--butter)}
+  60% {transform:scale(1);  box-shadow:0 0 0 5px var(--butter)}
+  100%{transform:scale(1);  box-shadow:var(--pop-sm)}
+}
+.just-added{animation:just-added 1s var(--spring)}
+
+/* ═══ DUE DATES — little tickets ════════════════════════ */
+.due{
+  flex:0 0 auto;cursor:pointer;font-family:inherit;
+  font-size:.78rem;font-weight:700;line-height:1;
+  padding:.34em .7em;
+  background:var(--cream);color:var(--cocoa-mid);
+  border:2px dashed var(--cocoa-mid);border-radius:var(--r-pill);
+  white-space:nowrap;
+  transition:transform .16s var(--spring),background .18s;
+}
+.due:hover{transform:translateY(-2px) rotate(-2deg);border-color:var(--cocoa);color:var(--cocoa)}
+.due.set{color:var(--cocoa);border-style:solid;border-color:var(--cocoa)}
+.due.soon{background:var(--butter)}
+.due.today{background:var(--blush)}
+.due.late{background:var(--berry);color:var(--cream);border-color:var(--cocoa);font-weight:800}
+.done > .row > .due{opacity:.4;background:var(--cream);color:var(--cocoa-mid);
+  border-color:var(--cocoa-mid);font-weight:700}
+.due-input{
+  font-family:inherit;font-size:.82rem;color:var(--cocoa);
+  background:var(--cream);border:2px solid var(--cocoa);border-radius:var(--r-pill);
+  padding:.28em .6em;outline:none;
+}
+.group-late{
+  font-size:.75rem;font-weight:800;
+  color:var(--cream);background:var(--berry);
+  border:2px solid var(--cocoa);border-radius:var(--r-pill);
+  padding:.12em .55em;white-space:nowrap;
 }
 
-.hero-sub {
-  font-family: var(--font-hand);
-  font-size: 18px;
-  color: var(--grey);
-  line-height: 1.7;
+/* ═══ FLOATING MOTIFS ═══════════════════════════════════ */
+.floaters{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.float{
+  position:absolute;opacity:.5;
+  width:72px;height:72px;
+  will-change:transform;
+}
+.f1{top:9%;left:4%;  animation:drift 7s ease-in-out infinite}
+.f2{top:15%;right:3%;animation:drift 9s ease-in-out infinite .6s;width:60px;height:60px}
+.f3{bottom:14%;left:8%;animation:drift 8s ease-in-out infinite 1.2s;width:54px;height:54px}
+.f4{bottom:6%;right:3%;animation:drift 10s ease-in-out infinite .3s}
+.f5{top:52%;left:47%;animation:drift 11s ease-in-out infinite .9s;width:44px;height:44px;opacity:.3}
+
+/* ═══ SKIN LOADER ═══════════════════════════════════════
+   A short curtain while the palette swaps, so the change
+   lands as a deliberate re-print rather than a flicker.  */
+.loader{
+  position:fixed;inset:0;z-index:90;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--cream);
+  opacity:0;pointer-events:none;
+  clip-path:inset(0 0 100% 0);
+  transition:clip-path .34s var(--ease), opacity .2s linear .14s;
+}
+.loader.on{
+  opacity:1;pointer-events:auto;
+  clip-path:inset(0 0 0 0);
+  transition:clip-path .34s var(--ease), opacity .12s linear;
+}
+.loader.out{
+  opacity:0;
+  clip-path:inset(100% 0 0 0);
+  transition:clip-path .38s var(--ease), opacity .2s linear .18s;
+}
+.loader-card{
+  display:flex;flex-direction:column;align-items:center;gap:12px;
+  padding:26px 34px;
+  background:var(--cream-2);
+  border:var(--line);border-radius:var(--r-panel);
+  box-shadow:var(--pop);
+}
+.loader-mark{width:52px;height:52px;animation:tumble 1.1s var(--ease) infinite}
+.loader-text{
+  font-family:var(--display);
+  font-size:1rem;font-weight:800;color:var(--cocoa);letter-spacing:.02em;
+}
+.loader-bar{
+  display:block;width:150px;height:12px;
+  background:var(--cream);
+  border:2px solid var(--cocoa);border-radius:var(--r-pill);
+  overflow:hidden;
+}
+.loader-bar i{
+  display:block;height:100%;width:40%;
+  background:var(--blush);
+  border-right:2px solid var(--cocoa);
+  animation:load-run .85s var(--ease) infinite;
+}
+@keyframes load-run{
+  0%{transform:translateX(-105%)}
+  100%{transform:translateX(255%)}
+}
+/* mono keeps the curtain but not the mascotry */
+[data-skin="mono"] .loader-mark{display:none}
+[data-skin="mono"] .loader-bar i{background:var(--cocoa-mid)}
+
+@media (max-width:840px){
+  .loader-card{padding:20px 24px;gap:10px}
+  .loader-mark{width:42px;height:42px}
+  .loader-text{font-size:.9rem}
+  .loader-bar{width:120px;height:10px}
 }
 
-.hero-illustration {
-  flex: 1;
-  position: relative;
-  display: flex;
-  align-items: flex-end;
+/* ═══ CELEBRATION ═══════════════════════════════════════ */
+#confetti{position:fixed;inset:0;z-index:60;pointer-events:none;display:none}
+#confetti.on{display:block}
+
+.cheer{
+  position:fixed;z-index:61;left:50%;top:38%;
+  transform:translate(-50%,-50%) scale(.6) rotate(-4deg);
+  background:var(--cream);border:var(--line);border-radius:var(--r-panel);
+  box-shadow:var(--pop);
+  padding:26px 38px 24px;text-align:center;
+  opacity:0;pointer-events:none;
+  transition:opacity .3s var(--ease),transform .5s var(--spring);
+}
+.cheer.show{opacity:1;transform:translate(-50%,-50%) scale(1) rotate(-3deg)}
+.cheer-beri{width:64px;height:64px;margin-bottom:4px;animation:hop .7s var(--spring) infinite alternate}
+.cheer-big{
+  font-family:var(--display);
+  font-weight:800;font-size:clamp(2rem,6vw,2.8rem);line-height:1;
+  color:var(--berry);
+}
+.cheer-small{margin-top:.5em;font-size:.9rem;font-weight:500;color:var(--cocoa-mid)}
+
+/* ═══ KEYFRAMES ═════════════════════════════════════════ */
+@keyframes bob{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-8px) rotate(2deg)}}
+@keyframes wiggle{0%,100%{transform:rotate(-7deg) scale(1.05)}50%{transform:rotate(7deg) scale(1.05)}}
+@keyframes tumble{0%{transform:rotate(0) scale(1)}50%{transform:rotate(200deg) scale(1.15)}100%{transform:rotate(360deg) scale(1)}}
+@keyframes drift{0%,100%{transform:translateY(0) rotate(-8deg)}50%{transform:translateY(-22px) rotate(10deg)}}
+@keyframes hop{0%{transform:translateY(0)}55%{transform:translateY(-6px)}100%{transform:translateY(0)}}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
+@keyframes breathe{0%,100%{opacity:1}50%{opacity:.72}}
+@keyframes stripe-roll{to{background-position:34px 0}}
+@keyframes panel-in{0%{opacity:0;transform:translateY(16px) scale(.97)}100%{opacity:1;transform:none}}
+@keyframes bubble-in{0%{opacity:0;transform:scale(.5) rotate(-14deg)}100%{opacity:1;transform:scale(1) rotate(-3deg)}}
+@keyframes star-in{0%{opacity:0;transform:scale(.3) rotate(-90deg)}100%{opacity:1;transform:scale(1) rotate(0)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes note-up{
+  0%{opacity:0;transform:translate(0,0) rotate(-10deg) scale(.6)}
+  25%{opacity:1}
+  100%{opacity:0;transform:translate(var(--nx,14px),-46px) rotate(18deg) scale(1.1)}
+}
+@keyframes nudge-shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-3px)}75%{transform:translateX(3px)}}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition-duration:.01ms!important}
 }
 
-.hero-ground {
-  position: absolute;
-  bottom: 0; left: 0; right: 0;
-  height: 32%;
-  background-color: #F5D96B;
+/* ═══ SHORT DESKTOP WINDOWS ═════════════════════════════
+   the page never scrolls, so when the window is short the
+   kit compacts rather than spilling off the bottom       */
+@media (min-width:841px) and (max-height:900px){
+  body{padding-top:14px;padding-bottom:10px}
+  h1{font-size:clamp(2.2rem,5vw,3.4rem);-webkit-text-stroke:3px var(--cocoa);
+     text-shadow:4px 4px 0 var(--sh1), 8px 8px 0 var(--sh2)}
+  .mascot{width:clamp(38px,5vw,54px)}
+  .scribble{margin-top:.4em;font-size:.85rem}
+  .top{margin-bottom:14px}
+  .panel{padding:24px 20px 16px}
+  .clock{font-size:clamp(2.2rem,5vw,3.4rem);margin:.1em 0 .2em}
+  .nudge{width:40px;height:40px;font-size:1.3rem}
+  .preset-row{margin-bottom:12px;gap:6px}
+  .chip{font-size:.82rem;padding:.36em .85em}
+  .btn{padding:.5em 1.3em}
+  .hint{margin-top:.5em;font-size:.82rem;min-height:0}
+  .week-row{margin:14px 0 2px;gap:8px}
+  .day .box{max-width:44px}
+  .streak-stats{margin-top:14px}
+  .stat .big{font-size:1.9rem}
+  .foot{margin-top:8px}
+}
+@media (min-width:841px) and (max-height:780px){
+  .scribble,.hint,.streak-panel .sub{display:none}
+  .skin-name{display:none}
+  .sound-btn{margin-top:6px;padding:.2em .6em;font-size:.66rem}
+  h1{font-size:2.2rem}
+  .clock{font-size:2.2rem}
+  .nudge{width:34px;height:34px;font-size:1.15rem}
+  .panel{padding:22px 18px 14px}
+  .day .box{max-width:38px}
+  .stat .big{font-size:1.6rem}
+  .lucky{top:30px;width:34px}
+  .lucky svg{width:30px;height:30px}
+  .lucky span{display:none}
 }
 
-.hero-chars {
-  position: relative;
-  z-index: 2;
-  display: flex;
-  align-items: flex-end;
-  gap: 24px;
-  padding: 0 32px 0 16px;
-  width: 100%;
-  justify-content: center;
-}
+/* ═══════════════════════════════════════════════════════
+   MOBILE — everything on one screen
+   two square tins on top, the task box filling the rest
+   ═══════════════════════════════════════════════════════ */
+@media (max-width:840px){
 
-.char-placeholder {
-  background: #e0e0e0;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  color: #aaa;
-  font-family: var(--font-display);
-}
-
-.char-main  { width: 220px; height: 300px; }
-.char-small { width: 130px; height: 180px; }
-
-.hero-chars img {
-  object-fit: contain;
-  object-position: bottom;
-}
-
-/* ── SECTION 2 — about ──────────────────────────────── */
-.section-about {
-  background-color: var(--cream);
-}
-
-.speech-bubble {
-  background: var(--white);
-  border: 1px solid #ddd;
-  border-radius: 16px;
-  padding: 16px 20px;
-  font-family: var(--font-hand);
-  font-size: 18px;
-  line-height: 1.5;
-  position: relative;
-  max-width: 320px;
-}
-.speech-bubble::after {
-  content: '';
-  position: absolute;
-  bottom: -14px; left: 24px;
-  border: 7px solid transparent;
-  border-top-color: #ddd;
-}
-
-.character-placeholder {
-  width: 100%;
-  max-width: 180px;
-  aspect-ratio: 180px;
-  background: #e8e8e8;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  color: #aaa;
-  font-family: var(--font-display);
-}
-
-.section-heading {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 32px;
-  text-decoration: underline;
-  margin-bottom: 8px;
-}
-
-.section-text {
-  font-size: 15px;
-  color: var(--grey);
-  line-height: 1.6;
-}
-
-/* ── SECTION 3 — tools ──────────────────────────────── */
-.section-tools {
-  background-color: var(--blue);
-}
-
-.tool-card {
-  background: var(--white);
-  border-radius: 16px;
-  padding: 24px;
-  text-align: center;
-  height: 100%;
-  transition: transform 0.2s;
-}
-.tool-card:hover { transform: translateY(-4px); }
-
-.tool-card a {
-  text-decoration: none;
-  color: inherit;
-  display: block;
-  height: 100%;
-}
-
-.tool-title {
-  font-family: var(--font-hand);
-  font-size: 22px;
-  font-weight: 700;
-  margin-bottom: 6px;
-}
-
-.tool-desc {
-  font-size: 14px;
-  color: var(--grey);
-}
-
-.tool-icon {
-  width: 64px;
-  height: 64px;
-  background: #eee;
-  border-radius: 50%;
-  margin: 0 auto 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 24px;
-}
-
-/* ── SECTION 4 — closing ────────────────────────────── */
-.section-close {
-  background-color: var(--pink);
-}
-
-/* ── ANIMATIONS ─────────────────────────────────────── */
-@keyframes fadeSlideUp {
-  from { opacity: 0; transform: translateY(24px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-.animate-in {
-  animation: fadeSlideUp 0.6s ease both;
-}
-.delay-1 { animation-delay: 0.15s; }
-.delay-2 { animation-delay: 0.3s;  }
-.delay-3 { animation-delay: 0.45s; }
-
-/* ── MOBILE ─────────────────────────────────────────── */
-@media (max-width: 767px) {
-  /* the logo is the tallest thing in the bar, so shrinking it is what
-     actually reclaims space on a phone */
-  .nav-logo { font-size: 32px; }
-
-  .hide-mobile { display: none !important; }
-  .snap-section { min-height: auto; padding-bottom: 48px; }
-  html { scroll-snap-type: none; }
-
-  .hero {
-    flex-direction: column;
-    min-height: 100vh;
-
-    /* Phones are tall and narrow, so 'cover' crops the sides hard.
-       Anchoring to the top keeps the important part of the image
-       visible. Change to 'center' or '50% 30%' to taste.          */
-    background-position: center top;
+  html,body{height:100%;overflow:hidden;overscroll-behavior:none}
+  body{display:flex;flex-direction:column;height:100dvh;padding:0}
+  .top{padding-left:14px;padding-right:14px}
+  .board{padding-left:14px;padding-right:14px;padding-bottom:calc(env(safe-area-inset-bottom) + 14px)}
+  .bubble{display:none}
+  /* on the tin there is only room for the star itself */
+  .lucky{top:13px;left:5px;right:auto;width:22px}
+  .lucky svg{width:22px;height:22px}
+  .lucky span{display:none}
+  .task-panel > .sub{
+    align-self:flex-start;                 /* a badge, not a banner */
+    margin-top:4px;padding:.18em .6em;font-size:.7rem;
+    border-width:2px;box-shadow:2px 2px 0 var(--cocoa);
   }
-  .hero-text {
-    flex: none;
-    padding: 32px 24px 16px;
-    text-align: center;
+  .floaters{opacity:.55}
+  .float{width:42px;height:42px}
+  .f1,.f2,.f5{display:none}
+  .f3{bottom:3%;left:2%}
+  .f4{bottom:4%;right:2%}
+  .foot{display:none}
+
+  .top{
+    flex:0 0 auto;text-align:center;margin:0;
+    padding:calc(env(safe-area-inset-top) + 7px) 14px 4px;
   }
-  .hero-tagline { font-size: 36px; }
-  .hero-sub     { font-size: 16px; }
-  .hero-illustration { flex: 1; min-height: 280px; }
-  .char-main  { width: 140px; height: 190px; }
-  .char-small { width: 90px;  height: 120px; }
-
-  .section-heading { font-size: 24px; }
-}
-
-/* ══ PHOTO BOOTH (breathing.html) ═══════════════════ */
-/* Only used by the photo booth page. Class names are
-   unique to that page, so nothing here affects the
-   home page, timer or task manager.                  */
-.booth-page {
-  min-height: 100vh;
-  padding: 120px 24px 64px;
-
-  /* fallback — shows if the image is missing or still loading */
-  background-color: var(--cream);
-
-  /* white veil on top of the photo so the strip and buttons stay readable */
-  background-image:
-    linear-gradient(rgba(255, 255, 255, .6), rgba(255, 255, 255, .6)),
-    url('backgroundHERO.png');
-
-  background-size: cover;            /* fill the page, crop the overflow */
-  background-position: center;
-  background-repeat: no-repeat;
-  background-attachment: fixed;      /* stays still while the page scrolls */
-}
-
-.booth-title {
-  font-family: var(--font-hand);
-  font-size: 46px;
-  font-weight: 700;
-  text-align: center;
-  margin-bottom: 4px;
-}
-.booth-sub {
-  text-align: center;
-  color: var(--grey);
-  font-size: 15px;
-  margin-bottom: 36px;
-}
-
-.booth-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 40px;
-  justify-content: center;
-  align-items: flex-start;
-  max-width: 1000px;
-  margin: 0 auto;
-}
-
-
-
-
-
-/* ── camera stage ─────────────────────────────────── */
-.stage-col { flex: 1 1 420px; max-width: 480px; }
-
-/* THE CAMERA STAGE
-   'position: relative' is essential — every overlay below (countdown,
-   flash, shot counter) is positioned absolutely INSIDE this box, and
-   absolute positioning anchors to the nearest positioned ancestor.
-   'aspect-ratio: 1/1' forces a perfect square regardless of screen
-   width, so the preview shows exactly the framing you'll capture.
-   'overflow: hidden' clips the video's cropped edges to the rounded
-   corners instead of letting them poke out.                          */
-.stage {
-  position: relative;
-  width: 100%;
-  aspect-ratio: 1 / 1;               /* square, matches the output */
-  border-radius: 24px;
-  overflow: hidden;
-  background: #2b2b2b;
-  border: 6px solid var(--white);
-  box-shadow: 0 10px 30px rgba(0,0,0,.12);
-}
-
-/* THE VIDEO FEED
-   Webcams output 4:3 or 16:9, never square. 'object-fit: cover' scales
-   the feed until it fills the square box and crops the overflow — the
-   same auto-crop idea as background-size: cover, but for media
-   elements. Without it the video would squash and look distorted.
-   'scaleX(-1)' flips it horizontally so it behaves like a mirror;
-   raising your right hand moves the right side of the screen. The
-   capture code applies the same flip so photos match the preview.     */
-.stage video {
-  width: 100%; height: 100%;
-  object-fit: cover;                 /* auto-crop the feed to the square */
-  transform: scaleX(-1);             /* mirror, like a real mirror */
-  display: block;
-}
-/* before the camera starts, hide the empty black video element so the
-   '📸 Tap Start camera' message shows through instead */
-.stage.idle video { opacity: 0; }
-
-.stage-msg {
-  position: absolute; inset: 0;
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  gap: 10px; text-align: center; padding: 24px;
-  color: #fff; font-size: 15px;
-}
-.stage-msg .big { font-size: 44px; }
-.stage.live .stage-msg { display: none; }
-
-/* countdown */
-.countdown {
-  position: absolute; inset: 0;
-  display: none;
-  align-items: center; justify-content: center;
-  background: rgba(0,0,0,.35);
-  font-family: var(--font-hand);
-  font-weight: 700;
-  font-size: 150px;
-  color: #fff;
-  text-shadow: 0 4px 18px rgba(0,0,0,.4);
-}
-.countdown.show { display: flex; }
-.countdown span { animation: pop .9s ease-out; }
-@keyframes pop {
-  0%   { transform: scale(.3); opacity: 0; }
-  35%  { transform: scale(1.15); opacity: 1; }
-  60%  { transform: scale(1); }
-  100% { transform: scale(.85); opacity: .15; }
-}
-
-/* SHUTTER FLASH — full screen.
-   'position: fixed' pins it to the window rather than the camera box,
-   so the whole display turns white. z-index 400 puts it above the nav
-   (100), overlay (150), side menu (200) and toast (300).
-   'pointer-events: none' means clicks pass straight through it.
-
-   This doubles as a light source: a white screen at arm's length
-   genuinely brightens your face, which is why the JS holds the flash
-   for a moment BEFORE capturing rather than firing them together.     */
-.booth-flash {
-  position: fixed; inset: 0;
-  background: #fff; opacity: 0; pointer-events: none;
-  z-index: 400;
-}
-.booth-flash.fire { animation: flashAnim .7s ease-out; }
-/* Holds at full white for the first 45% (~315ms) so the camera has
-   time to meter the extra light, then fades out.                     */
-@keyframes flashAnim {
-  0%   { opacity: 1; }
-  45%  { opacity: 1; }
-  100% { opacity: 0; }
-}
-
-.shot-pip {
-  position: absolute; top: 14px; left: 14px;
-  background: rgba(0,0,0,.55); color: #fff;
-  font-size: 13px; font-weight: 600;
-  padding: 5px 12px; border-radius: 999px;
-  opacity: 0; transition: opacity .25s;
-}
-.shot-pip.show { opacity: 1; }
-
-/* ── controls ─────────────────────────────────────── */
-.controls { margin-top: 22px; display: flex; flex-direction: column; gap: 16px; }
-.btn-row  { display: flex; gap: 12px; flex-wrap: wrap; }
-
-.bth {
-  font-family: var(--font-display);
-  font-weight: 600; font-size: 15px;
-  border: none; border-radius: 999px;
-  padding: 13px 24px; cursor: pointer;
-  transition: transform .15s, box-shadow .15s, opacity .15s;
-  display: inline-flex; align-items: center; gap: 8px;
-}
-.bth:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,.14); }
-.bth:disabled { opacity: .45; cursor: not-allowed; }
-.bth-primary { background: var(--dark);  color: #fff; flex: 1 1 auto; justify-content: center; }
-.bth-soft    { background: var(--white); color: var(--dark); border: 1px solid #ddd; }
-
-.filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-.filters-label {
-  font-size: 12px; text-transform: uppercase; letter-spacing: .08em;
-  color: var(--grey); width: 100%; margin-bottom: 2px;
-}
-.chip {
-  font-family: var(--font-display); font-size: 13px; font-weight: 600;
-  border: 1px solid #ddd; background: var(--white); color: var(--dark);
-  border-radius: 999px; padding: 8px 15px; cursor: pointer;
-  transition: .15s;
-}
-.chip:hover { border-color: var(--dark); }
-.chip[aria-pressed="true"] { background: var(--dark); color: #fff; border-color: var(--dark); }
-
-/* ── sticker tray ─────────────────────────────────── */
-.stickers { display: flex; flex-wrap: wrap; gap: 8px; }
-.sticker-tray { display: flex; gap: 8px; flex-wrap: wrap; width: 100%; }
-
-.sticker-tray button {
-  width: 52px; height: 52px; padding: 6px;
-  background: var(--white); border: 1px solid #ddd;
-  border-radius: 12px; cursor: pointer; transition: .15s;
-}
-.sticker-tray button:hover { transform: translateY(-2px); border-color: var(--dark); }
-/* pointer-events: none so a click always registers on the button,
-   never on the image inside it */
-.sticker-tray img { width: 100%; height: 100%; object-fit: contain; display: block; pointer-events: none; }
-
-.sticker-clear { font-size: 13px; padding: 9px 18px; }
-/* .bth sets display:inline-flex, which would otherwise beat the plain
-   'hidden' attribute and leave the button visible. This restores it.  */
-.sticker-clear[hidden] { display: none; }
-
-/* ── photo strip ──────────────────────────────────── */
-.strip-col { flex: 0 0 300px; }
-
-/* 'position: relative' turns the strip into the coordinate system for
-   placed stickers — their percentage positions are measured against
-   this box, which is what lets the same numbers map onto the download
-   canvas at a completely different pixel size.                        */
-.strip {
-  position: relative;
-  background: var(--white);
-  border-radius: 18px;
-  padding: 18px 18px 14px;
-  box-shadow: 0 10px 30px rgba(0,0,0,.12);
-  display: flex; flex-direction: column; gap: 12px;
-}
-
-/* A PLACED STICKER
-   left/top are percentages of the strip, and translate(-50%,-50%)
-   shifts the sticker so those percentages point at its CENTRE rather
-   than its top-left corner — much more intuitive to drag.
-   'touch-action: none' stops phones scrolling the page mid-drag.      */
-.placed {
-  position: absolute;
-  /* set by script.js from STICKER_W so the preview and the downloaded
-     PNG can never disagree. The 22% is only a fallback.              */
-  width: var(--sticker-w, 22%);
-
-  /* translateZ(0) forces the sticker onto its own compositing layer.
-     Without it, dragging an element that has a drop-shadow leaves
-     smears of the old shadow behind — the browser repaints the new
-     position but doesn't always clear the area the shadow used to
-     cover. On desktop a scroll cleans it up; on phones it doesn't.
-     will-change tells the browser this element is about to move, so
-     it prepares the layer before the first drag rather than mid-drag. */
-  transform: translate(-50%, -50%) translateZ(0);
-  will-change: transform, left, top;
-
-  cursor: grab;
-  touch-action: none;
-  user-select: none; -webkit-user-select: none;
-  z-index: 5;
-  filter: drop-shadow(0 2px 5px rgba(0,0,0,.25));
-}
-
-/* belt and braces: drop the shadow entirely while the sticker is
-   actually moving, then bring it back on release */
-.placed.grabbing {
-  cursor: grabbing;
-  filter: none;
-}
-/* ONE PHOTO SLOT
-   Four of these stack vertically to form the strip. Each is locked
-   square by aspect-ratio, so the strip keeps its shape whether it
-   holds photos or empty placeholders. The diagonal stripe pattern is
-   the empty state — it disappears once an <img> is dropped in.       */
-.slot {
-  position: relative;
-  width: 100%;
-  aspect-ratio: 1 / 1;               /* square layout */
-  border-radius: 10px;
-  overflow: hidden;
-  background: repeating-linear-gradient(45deg, #f2f0eb, #f2f0eb 8px, #ebe8e2 8px, #ebe8e2 16px);
-  display: flex; align-items: center; justify-content: center;
-}
-/* Photos are already cropped square by the canvas code, so object-fit
-   here is a safety net — if anything non-square ever lands in a slot
-   it gets cropped rather than stretched.                             */
-.slot img {
-  width: 100%; height: 100%;
-  object-fit: cover;                 /* auto-crop to the square */
-  display: block;
-  animation: dropIn .5s cubic-bezier(.2,.9,.3,1.4) both;
-}
-@keyframes dropIn {
-  0%   { opacity: 0; transform: translateY(-14px) scale(.9) rotate(-3deg); }
-  100% { opacity: 1; transform: none; }
-}
-.slot-num {
-  font-family: var(--font-hand); font-size: 30px; color: #c9c5bd;
-}
-.slot .retake {
-  position: absolute; right: 8px; bottom: 8px;
-  background: rgba(0,0,0,.6); color: #fff;
-  border: none; border-radius: 999px;
-  font-size: 12px; font-weight: 600; padding: 6px 12px;
-  cursor: pointer; opacity: 0; transition: opacity .2s;
-}
-.slot:hover .retake { opacity: 1; }
-
-.strip-foot {
-  text-align: center;
-  font-family: var(--font-hand);
-  font-size: 20px; color: var(--grey);
-  padding-top: 2px;
-}
-.strip-actions { display: flex; gap: 10px; margin-top: 16px; }
-.strip-actions .bth { flex: 1; justify-content: center; font-size: 14px; padding: 11px 16px; }
-
-.booth-toast {
-  position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(20px);
-  background: var(--dark); color: #fff;
-  padding: 12px 22px; border-radius: 999px; font-size: 14px;
-  opacity: 0; pointer-events: none; transition: .3s; z-index: 300;
-  max-width: 90vw; text-align: center;
-}
-.booth-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-
-@media (max-width: 767px) {
-  .booth-page { padding-top: 100px; }
-  .booth-title { font-size: 34px; }
-  .strip-col { flex: 1 1 100%; max-width: 320px; }
-  .countdown { font-size: 110px; }
-}
-
-/* ══ TIMER (timer.html) ══════════════════════════════ */
-/* Class names are unique to this page, so nothing here
-   affects the home page, task manager or photo booth.  */
-.timer-page {
-  min-height: 100vh;
-  padding: 130px 24px 64px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-
-  /* fallback — shows if the image is missing or still loading */
-  background-color: var(--cream);
-
-  /* white veil on top of the photo so the dial and buttons stay readable.
-     Lower numbers = more of the photo shows through. .78 hid it too
-     much, so it's back down to .55 — a little stronger than the .6 it
-     started at.                                                       */
-  background-image:
-    linear-gradient(rgba(255, 255, 255, .55), rgba(255, 255, 255, .55)),
-    url('backgroundHERO.png');
-
-  background-size: cover;            /* fill the page, crop the overflow */
-  background-position: center;
-  background-repeat: no-repeat;
-  background-attachment: fixed;      /* stays still while the page scrolls */
-}
-
-.timer-title {
-  font-family: var(--font-hand);
-  font-size: 46px;
-  font-weight: 700;
-  text-align: center;
-  margin-bottom: 4px;
-}
-.timer-sub {
-  text-align: center;
-  color: var(--grey);
-  font-size: 15px;
-  max-width: 420px;
-  margin-bottom: 28px;
-}
-
-/* ── the dial ─────────────────────────────────────── */
-/* The ring and the digits are stacked: the SVG fills the
-   box, and .dial-face sits on top of it, centred.      */
-.timer-dial {
-  position: relative;
-  width: 300px; height: 300px;
-  max-width: 82vw; max-height: 82vw;
-  margin-bottom: 26px;
-}
-
-.ring { width: 100%; height: 100%; display: block; transform: rotate(-90deg); }
-
-.ring-track {
-  fill: none;
-  stroke: rgba(43,43,43,.10);
-  stroke-width: 12;
-}
-
-/* stroke-dasharray is set by script.js to the circle's full
-   circumference; stroke-dashoffset then hides part of that
-   dash, which is what makes the arc shrink as time passes. */
-.ring-fill {
-  fill: none;
-  stroke: var(--dark);
-  stroke-width: 12;
-  stroke-linecap: round;
-  transition: stroke-dashoffset .35s linear, stroke .4s;
-}
-.timer-dial.done .ring-fill { stroke: #6FAE7C; }
-
-.dial-face {
-  position: absolute; inset: 0;
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  gap: 6px; text-align: center; padding: 0 34px;
-  pointer-events: none;
-}
-
-.time {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 58px;
-  letter-spacing: 1px;
-  font-variant-numeric: tabular-nums;   /* stops digits jittering */
-  color: var(--dark);
-}
-.timer-dial.running .time { animation: tick 1s ease-in-out infinite; }
-@keyframes tick {
-  0%, 100% { transform: scale(1); }
-  50%      { transform: scale(1.015); }
-}
-
-.message {
-  font-family: var(--font-hand);
-  font-size: 20px;
-  color: var(--grey);
-  margin: 0;
-  min-height: 26px;
-}
-
-/* ── duration controls ────────────────────────────── */
-.adjust {
-  display: flex; align-items: center; gap: 16px;
-  margin-bottom: 16px;
-}
-.adj-btn {
-  width: 44px; height: 44px;
-  border-radius: 50%;
-  border: 1px solid #ddd;
-  background: var(--white);
-  color: var(--dark);
-  font-size: 22px; font-weight: 600;
-  cursor: pointer; transition: .15s;
-  display: flex; align-items: center; justify-content: center;
-}
-.adj-btn:hover:not(:disabled) { transform: translateY(-2px); border-color: var(--dark); }
-.adj-btn:disabled { opacity: .4; cursor: not-allowed; }
-
-.adj-label {
-  font-family: var(--font-display);
-  font-weight: 600; font-size: 15px;
-  color: var(--grey);
-  min-width: 110px; text-align: center;
-}
-
-.timer-presets {
-  display: flex; gap: 8px; flex-wrap: wrap;
-  justify-content: center; margin-bottom: 26px;
-}
-
-.timer-actions { display: flex; gap: 12px; }
-.timer-actions .bth { min-width: 140px; justify-content: center; }
-
-/* The adjust row now stays visible while the clock runs, so time can
-   be added mid-session. Only the presets hide, because tapping "25 min"
-   halfway through a run is far more likely to be a mistake than a
-   deliberate choice.                                                */
-.timer-page.running .timer-presets { display: none; }
-.timer-page.running .adjust { opacity: .85; }
-
-@media (max-width: 767px) {
-  .timer-page { padding-top: 100px; }
-  .timer-title { font-size: 34px; }
-  .time { font-size: 46px; }
-}
-
-/* ══ TASK MANAGER (tasks.html) ═══════════════════════ */
-/* Class names are unique to this page.                 */
-.tasks-page {
-  min-height: 100vh;
-  padding: 130px 24px 80px;
-
-  /* fallback — shows if the image is missing or still loading */
-  background-color: var(--cream);
-
-  /* white veil on top of the photo so the cards and text stay readable.
-     Lower numbers = more of the photo shows through. .78 hid it too
-     much, so it's back down to .55 — a little stronger than the .6 it
-     started at.                                                       */
-  background-image:
-    linear-gradient(rgba(255, 255, 255, .55), rgba(255, 255, 255, .55)),
-    url('backgroundHERO.png');
-
-  background-size: cover;            /* fill the page, crop the overflow */
-  background-position: center;
-  background-repeat: no-repeat;
-  background-attachment: fixed;      /* stays still while the page scrolls */
-}
-
-.tasks-title {
-  font-family: var(--font-hand);
-  font-size: 46px; font-weight: 700;
-  text-align: center; margin-bottom: 4px;
-}
-.tasks-sub {
-  text-align: center; color: var(--grey); font-size: 15px;
-  max-width: 480px; margin: 0 auto 30px;
-}
-
-/* ── overall progress ─────────────────────────────── */
-.overall {
-  max-width: 640px; margin: 0 auto 20px;
-  background: var(--white); border-radius: 14px;
-  padding: 16px 18px; box-shadow: 0 6px 18px rgba(0,0,0,.07);
-}
-.overall-head {
-  display: flex; justify-content: space-between; align-items: center;
-  font-size: 14px; font-weight: 600; color: var(--grey); margin-bottom: 10px;
-}
-.link-btn {
-  background: none; border: none; padding: 0; cursor: pointer;
-  font-family: var(--font-display); font-size: 13px; font-weight: 600;
-  color: var(--grey); text-decoration: underline;
-}
-.link-btn:hover { color: var(--dark); }
-
-.bar { height: 8px; background: rgba(43,43,43,.10); border-radius: 999px; overflow: hidden; }
-.bar-fill {
-  height: 100%; width: 0%;
-  background: var(--dark); border-radius: 999px;
-  transition: width .35s ease;
-}
-.task-card.complete .bar-fill { background: #6FAE7C; }
-
-/* ── add form ─────────────────────────────────────── */
-.add-card {
-  max-width: 640px; margin: 0 auto 26px;
-  background: var(--white); border-radius: 16px;
-  padding: 18px; box-shadow: 0 6px 18px rgba(0,0,0,.07);
-  display: flex; flex-direction: column; gap: 10px;
-}
-.add-row { display: flex; gap: 10px; flex-wrap: wrap; }
-.add-row .bth { flex: 1 1 auto; justify-content: center; }
-
-.field {
-  font-family: var(--font-display); font-size: 15px;
-  border: 1px solid #ddd; border-radius: 10px;
-  padding: 12px 14px; width: 100%; color: var(--dark);
-  background: var(--white);
-}
-.field:focus { outline: 2px solid var(--dark); outline-offset: 1px; }
-.field-date { flex: 0 0 170px; width: auto; }
-
-/* ── one assessment ───────────────────────────────── */
-.task-list { max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
-
-.task-card {
-  background: var(--white);
-  padding: 18px;
-  animation: cardIn .35s ease both;
-}
-/* the end state has to include the tilt, otherwise 'transform: none'
-   here overrides the rotate set on .task-card and the card snaps
-   straight the moment the animation finishes                        */
-@keyframes cardIn {
-  from { opacity: 0; transform: translateY(10px) rotate(.2deg); }
-  to   { opacity: 1; transform: rotate(.2deg); }
-}
-.task-card.complete { opacity: .72; }
-
-.card-head { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 6px; }
-.card-title {
-  font-family: var(--font-display); font-weight: 700; font-size: 18px;
-  flex: 1; word-break: break-word; cursor: text;
-}
-.task-card.complete .card-title { text-decoration: line-through; }
-
-.icon-btn {
-  background: none; border: none; cursor: pointer;
-  font-size: 15px; line-height: 1; padding: 4px 6px;
-  color: #b9b5ad; border-radius: 6px; transition: .15s;
-}
-.icon-btn:hover { color: var(--dark); background: #f2f0eb; }
-
-.due {
-  display: inline-block; font-size: 12px; font-weight: 600;
-  padding: 3px 10px; border-radius: 999px; margin-bottom: 12px;
-  background: #eef1f4; color: var(--grey);
-}
-.due.soon    { background: #FBEFD6; color: #8a6316; }
-.due.overdue { background: #F7DEDA; color: #9c3a2c; }
-.due.done    { background: #E4F1E6; color: #3f7049; }
-
-.count { font-size: 13px; color: var(--grey); margin: 10px 0 6px; }
-
-/* ── steps ────────────────────────────────────────── */
-.steps { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
-
-.step {
-  display: flex; align-items: center; gap: 10px;
-  padding: 7px 8px; border-radius: 8px;
-  transition: background .15s;
-}
-.step:hover { background: #f7f5f1; }
-.step.dragging { opacity: .4; }
-.step.drop-target { background: #eceae4; }
-
-.step input[type="checkbox"] {
-  width: 18px; height: 18px; flex: 0 0 auto;
-  accent-color: var(--dark); cursor: pointer;
-}
-.step-text { flex: 1; font-size: 15px; cursor: text; word-break: break-word; }
-.step.done .step-text { text-decoration: line-through; color: #a8a49c; }
-
-.grip {
-  cursor: grab; color: #cfcac1; font-size: 14px;
-  padding: 2px 4px; user-select: none; touch-action: none;
-}
-.grip:active { cursor: grabbing; }
-
-.add-step {
-  display: flex; gap: 8px; margin-top: 10px;
-}
-.add-step .field { font-size: 14px; padding: 9px 12px; }
-.add-step .bth  { font-size: 14px; padding: 9px 18px; }
-
-.empty-note {
-  text-align: center; color: var(--grey); font-size: 15px;
-  font-family: var(--font-hand); font-size: 20px; margin-top: 30px;
-}
-
-@media (max-width: 767px) {
-  .tasks-page { padding-top: 100px; }
-  .tasks-title { font-size: 34px; }
-  .field-date { flex: 1 1 100%; }
-}
-
-/* ══ INSTALL BANNER (PWA) ════════════════════════════ */
-/* Shown only on iOS in Safari, because iOS gives no built-in
-   install prompt — the user has to do it manually.       */
-.install-hint {
-  position: fixed; left: 12px; right: 12px; bottom: 12px;
-  z-index: 350;
-  background: var(--white);
-  border: 1px solid #e3dfd7;
-  border-radius: 16px;
-  padding: 14px 16px;
-  box-shadow: 0 10px 30px rgba(0,0,0,.16);
-  display: flex; align-items: center; gap: 12px;
-  font-size: 14px; line-height: 1.4;
-  animation: hintIn .4s ease both;
-}
-@keyframes hintIn {
-  from { opacity: 0; transform: translateY(14px); }
-  to   { opacity: 1; transform: none; }
-}
-.install-hint img { width: 40px; height: 40px; border-radius: 10px; flex: 0 0 auto; }
-.install-hint p   { margin: 0; flex: 1; color: var(--dark); }
-.install-hint b   { font-weight: 700; }
-.install-hint button {
-  background: none; border: none; cursor: pointer;
-  font-size: 18px; color: #b9b5ad; padding: 4px 6px; align-self: flex-start;
-}
-
-/* ══ TIMER — DOODLE LOOK (optional) ══════════════════
-   Everything here is scoped to .timer-dial.doodle, so removing the
-   word "doodle" from the class in timer.html turns all of it off and
-   the clean version comes back. Nothing below affects any other page.
-
-   The wobble comes from an SVG filter defined in timer.html: random
-   noise is used to nudge each pixel of the line sideways, which makes
-   a perfect circle look like it was drawn by hand.                  */
-
-/* the extra sketch pass is invisible unless the doodle look is on */
-.ring-sketch { display: none; }
-
-.timer-dial.doodle .ring-sketch {
-  display: block;
-  fill: none;
-  stroke: rgba(43, 43, 43, .22);
-  stroke-width: 5;
-  stroke-linecap: round;
-  filter: url(#roughen2);
-  /* offset slightly so it reads as a second pencil pass, not a copy */
-  transform: rotate(2deg);
-  transform-origin: 50% 50%;
-}
-
-.timer-dial.doodle .ring-track {
-  stroke: rgba(43, 43, 43, .14);
-  stroke-width: 9;
-  stroke-linecap: round;
-  filter: url(#roughen);
-}
-
-.timer-dial.doodle .ring-fill {
-  stroke-width: 11;
-  filter: url(#roughen);
-}
-
-/* the whole dial sits very slightly crooked, like it was stuck on */
-.timer-dial.doodle { transform: rotate(-1.2deg); }
-
-/* handwritten digits — Caveat has a smaller x-height than Space
-   Grotesk, so the size goes up to compensate */
-.timer-dial.doodle .time {
-  font-family: var(--font-hand);
-  font-size: 78px;
-  font-weight: 700;
-  letter-spacing: 2px;
-}
-
-.timer-dial.doodle .message {
-  font-size: 21px;
-  transform: rotate(1.2deg);   /* straighten the text back up */
-}
-
-/* a soft paper-coloured disc behind the numbers so they sit on
-   something rather than floating on the background photo */
-.timer-dial.doodle .dial-face::before {
-  content: '';
-  position: absolute;
-  left: 16%; top: 16%; right: 16%; bottom: 16%;
-  background: rgba(255, 255, 255, .72);
-  border-radius: 50%;
-  z-index: -1;
-}
-
-@media (max-width: 767px) {
-  .timer-dial.doodle .time { font-size: 62px; }
-}
-
-
-
-/* ── HAND-DRAWN BOX EDGES (tasks page) ──────────────
-   All three boxes on the task manager keep their white background and
-   get a drawn-looking outline instead of a neat rounded rectangle.
-
-   The trick is border-radius with eight values instead of four. The
-   part before the slash sets the horizontal radius of each corner and
-   the part after sets the vertical, so every corner is a different
-   lopsided curve. Wildly mismatched numbers make the edge wander the
-   way a pen does.
-
-   ::after draws a second outline slightly offset and rotated, which
-   reads as the pen going round twice. It's pointer-events: none so it
-   can never block a click.                                          */
-
-.overall,
-.add-card,
-.task-card {
-  position: relative;
-  border: 2px solid var(--dark);
-  border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
-  box-shadow: 0 4px 14px rgba(0,0,0,.06);
-}
-
-.overall::after,
-.add-card::after,
-.task-card::after {
-  content: '';
-  position: absolute;
-  inset: -5px;
-  border: 2px solid var(--dark);
-  border-radius: 225px 15px 255px 15px / 15px 255px 15px 225px;
-  opacity: .22;
-  transform: rotate(-.4deg);
-  pointer-events: none;
-}
-
-/* each box leans a slightly different way, so they don't look stamped */
-.add-card  { transform: rotate(-.25deg); }
-.task-card { transform: rotate(.2deg); }
-.overall   { transform: rotate(-.15deg); }
-
-/* the completed state dimmed the whole card, which also faded the
-   outline — keep the drawn edge and fade only the contents */
-.task-card.complete { opacity: 1; }
-.task-card.complete .card-head,
-.task-card.complete .steps,
-.task-card.complete .count,
-.task-card.complete .due { opacity: .6; }
-
-/* ── HAND-DRAWN BOX EDGES (photo booth) ─────────────
-   Same lopsided border-radius as the task page: eight values instead
-   of four, so every corner curves differently and the edge wanders
-   like a pen line.                                                  */
-
-/* THE PHOTO STRIP — full treatment, matching the task cards.
-   Deliberately NOT rotated. Sticker dragging and the download both
-   measure this box with getBoundingClientRect(), which reports the
-   bounding box of a rotated element rather than the element itself.
-   A tilt here would quietly throw off both.                        */
-.strip {
-  border: 2px solid var(--dark);
-  border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
-  box-shadow: 0 4px 14px rgba(0,0,0,.08);
-}
-.strip::after {
-  content: '';
-  position: absolute;
-  inset: -5px;
-  border: 2px solid var(--dark);
-  border-radius: 225px 15px 255px 15px / 15px 255px 15px 225px;
-  opacity: .22;
-  transform: rotate(-.4deg);
-  pointer-events: none;
-}
-
-/* THE CAMERA BOX — keeps its white frame, which now reads as a
-   hand-cut photo border. The drawn line uses 'outline' rather than
-   ::after because .stage has overflow: hidden to clip the video, and
-   that would crop a pseudo-element sitting outside it. An outline is
-   drawn outside the border box and isn't clipped that way.         */
-.stage {
-  border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
-  outline: 2px solid var(--dark);
-  outline-offset: 0;
-}
-
-/* the four photo slots get a gentler version, so they look cut out
-   by hand without competing with the strip's own edge */
-.slot {
-  border-radius: 120px 8px 110px 8px / 8px 110px 8px 120px;
-}
-
-/* the logo is a link now — strip the default link styling so it looks
-   exactly as it did as a span, and give a small hover cue */
-.nav-logo {
-  text-decoration-line: underline;   /* keep the underline it always had */
-  cursor: pointer;
-  transition: opacity .15s;
-}
-.nav-logo:hover { opacity: .72; }
-
-/* per-slot upload button on empty photo slots */
-.slot-upload {
-  position: absolute; left: 50%; bottom: 12px;
-  transform: translateX(-50%);
-  background: rgba(43,43,43,.72); color: #fff;
-  border: none; border-radius: 999px;
-  font-family: var(--font-display); font-weight: 600;
-  font-size: 12px; padding: 6px 14px;
-  cursor: pointer; opacity: 0; transition: opacity .2s;
-}
-.slot:hover .slot-upload { opacity: 1; }
-/* touch devices have no hover, so keep it permanently visible there */
-@media (hover: none) {
-  .slot-upload { opacity: .9; }
-  .slot .retake { opacity: .9; }
-}
-
-/* the due chip is a button now, so it needs to look clickable */
-.due {
-  border: none;
-  font-family: var(--font-display);
-  cursor: pointer;
-  transition: filter .15s;
-  display: inline-flex; align-items: baseline; gap: 7px;
-}
-.due:hover { filter: brightness(.94); }
-.due-date { font-weight: 400; opacity: .78; }
-.due-empty {
-  background: transparent;
-  color: var(--grey);
-  border: 1px dashed #c9c5bd;
-}
-
-/* ── "what's this for?" explainer on the timer ──────── */
-.why {
-  max-width: 460px;
-  margin: -14px auto 26px;
-  font-size: 14px;
-  color: var(--grey);
-  text-align: left;
-}
-.why summary {
-  cursor: pointer;
-  font-family: var(--font-display);
-  font-weight: 600;
-  font-size: 14px;
-  color: var(--dark);
-  text-align: center;
-  list-style: none;
-  padding: 6px 0;
-  text-decoration: underline;
-  text-underline-offset: 4px;
-}
-.why summary::-webkit-details-marker { display: none; }
-.why[open] summary { margin-bottom: 8px; }
-.why p { margin: 0 0 8px; line-height: 1.6; }
-.why em { font-style: normal; font-weight: 600; color: var(--dark); }
-
-/* the adjust buttons need a bigger touch target for hold-to-repeat,
-   and no text selection when held down */
-.adj-btn {
-  user-select: none; -webkit-user-select: none;
-  touch-action: manipulation;
+  .brandline{padding:2px 10px;margin-bottom:4px;gap:6px;box-shadow:2px 2px 0 var(--cocoa)}
+  .skins{margin:0 0 4px 5px;padding:2px;gap:3px;box-shadow:1px 1px 0 var(--cocoa)}
+  .skin{padding:.1em .18em}
+  .skin-name{display:none}
+  .chipdot{width:12px;height:12px}
+  .maker{font-size:.55rem;letter-spacing:.16em}
+  .brandline .dot{width:5px;height:5px}
+  .scribble{display:none}
+  .lockup{gap:8px}
+  .mascot{width:34px}
+  h1{
+    font-size:1.7rem;line-height:1.05;letter-spacing:0;
+    -webkit-text-stroke:2.5px var(--cocoa);
+    text-shadow:2px 2px 0 var(--sh1), 4px 4px 0 var(--sh2);
+  }
+  .lockup{gap:10px}
+
+  .board{
+    flex:1 1 auto;min-height:0;min-width:0;
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    grid-template-rows:auto minmax(0,1fr);
+    align-items:stretch;
+    gap:8px;padding:6px 12px calc(env(safe-area-inset-bottom) + 10px) 10px;
+    max-width:none;width:100%;
+  }
+  .col{display:contents}
+
+  .timer-panel,.streak-panel,.task-panel{min-width:0;min-height:0}
+  .timer-panel {grid-column:1;grid-row:1;aspect-ratio:1/1;overflow:hidden}
+  .streak-panel{grid-column:2;grid-row:1;aspect-ratio:1/1;overflow:hidden}
+  .task-panel  {grid-column:1 / -1;grid-row:2}
+
+  .panel{
+    width:100%;min-width:0;
+    padding:24px 11px 8px;
+    border-radius:18px;box-shadow:var(--pop-sm);
+  }
+  .panel::before{height:12px;background-size:22px 12px}
+  .tab{display:none}
+  .panel h2{
+    font-size:.92rem;text-align:center;line-height:1;
+    font-family:var(--display);
+  }
+  /* caption pinned under the scallop, content centred below */
+  .timer-panel,.streak-panel{position:relative;padding-top:28px}
+  .timer-panel > h2,.streak-panel > h2{position:absolute;top:13px;left:6px;right:6px}
+
+  /* ── timer tin ── */
+  .timer-panel{
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:2px;text-align:center;
+  }
+  .timer-panel .hint{display:none}
+  .sound-btn{margin-top:0;padding:.06em .38em;font-size:.54rem;gap:2px;border-width:2px;box-shadow:1px 1px 0 var(--cocoa)}
+  .sound-btn .slab{display:none}
+  .clock-row{display:flex;flex-wrap:wrap;gap:5px;width:100%;justify-content:center;padding:0 1px}
+  .clock{
+    order:1;flex:0 0 100%;min-width:0;overflow:hidden;
+    font-size:clamp(1.5rem,8.6vw,2.1rem);margin:0;letter-spacing:-.03em;
+  }
+  .nudge{
+    order:2;flex:0 0 auto;
+    width:44px;height:24px;font-size:1rem;
+    border-radius:9px;box-shadow:2px 2px 0 var(--cocoa);
+  }
+  .preset-row{
+    min-width:0;max-width:100%;width:100%;
+    gap:3px;margin:0;flex-wrap:nowrap;justify-content:stretch;padding:1px;
+  }
+  .chip{
+    font-size:.72rem;padding:.34em 0;flex:1 1 0;min-width:0;
+    border-width:2px;text-align:center;overflow:hidden;
+  }
+  .chip .cl{display:none}
+  .chip .cs{display:inline}
+  .btn-row{gap:6px}
+  .timer-panel .btn{font-size:.72rem;padding:.3em .8em;border-width:2px;box-shadow:2px 2px 0 var(--cocoa)}
+
+  /* ── streak tin ── */
+  .streak-panel{
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:5px;text-align:center;
+  }
+  .streak-panel .sub{display:none}
+  .week-row{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin:0;width:100%}
+  .day{min-width:0;gap:1px}
+  .day .box{max-width:100%;max-height:32px;border-width:2px;border-radius:8px}
+  .day .lab{font-size:.7rem;line-height:1}
+  .streak-stats{
+    display:flex;flex-direction:row;flex-wrap:nowrap;gap:0;margin:0;width:100%;
+    justify-content:space-between;align-items:baseline;
+  }
+  .stat{flex:1 1 0;min-width:0;flex-direction:row;align-items:baseline;justify-content:center;gap:3px}
+  .stat + .stat{border-left:2px solid rgba(74,43,34,.18)}
+  .stat .big{font-size:1rem}
+  .stat .lbl{font-size:.74rem;white-space:nowrap;margin:0}
+  .stat .ll{display:none}
+  .stat .ls{display:inline}
+
+  /* ── task box ── */
+  .task-panel{
+    flex:1 1 auto;min-height:0;
+    display:flex;flex-direction:column;
+    overflow:hidden;padding:22px 12px 10px;
+  }
+  .task-panel > h2{
+    text-align:left;display:flex;align-items:baseline;gap:8px;flex:0 0 auto;
+  }
+  .task-panel > h2::after{
+    content:"";flex:1 1 auto;height:3px;border-radius:2px;background:var(--blush);
+  }
+  .task-panel > .sub,
+  .task-panel > .progress,
+  .task-panel > #addGroupForm,
+  .task-panel > .clear-row{flex:0 0 auto}
+  .task-panel > .sub{font-size:.82rem;margin:1px 0 0}
+  .progress{margin:8px 0 2px;gap:10px}
+  .bar{height:18px}
+  .rider{width:22px;height:22px;top:-12px}
+  .pct{font-size:1.1rem;min-width:3.4ch}
+  .add-row{margin:8px 0}
+  .add-row input{padding:.45em 1em;font-size:.88rem}
+  .add-row .btn{font-size:.78rem;padding:.42em .9em}
+  .group-list{
+    flex:1 1 auto;min-height:0;
+    overflow-y:auto;-webkit-overflow-scrolling:touch;
+    gap:10px;padding:2px 4px 4px 2px;margin-bottom:8px;
+  }
+  .task-panel > .clear-row{flex:0 0 auto;margin-top:auto;gap:8px}
+  .task-panel .clear-row .btn{font-size:.76rem;padding:.42em .85em}
+
+  /* rows scale with how many there are — JS steps d1…d5 */
+  .task-panel{
+    --fs:.9rem; --pad:8px; --tick:28px; --gap:8px; --ghead:9px; --gname:.96rem;
+  }
+  .task-panel.d2{--fs:.86rem;--pad:6px;--tick:25px;--gap:7px;--ghead:8px;--gname:.92rem}
+  .task-panel.d3{--fs:.82rem;--pad:5px;--tick:23px;--gap:6px;--ghead:7px;--gname:.88rem}
+  .task-panel.d4{--fs:.78rem;--pad:4px;--tick:21px;--gap:5px;--ghead:6px;--gname:.84rem}
+  .task-panel.d5{--fs:.74rem;--pad:3px;--tick:19px;--gap:4px;--ghead:5px;--gname:.8rem}
+
+  .group-list{gap:var(--gap)}
+  .group{border-radius:14px;box-shadow:2px 2px 0 var(--cocoa)}
+  .group-head{padding:var(--ghead) 11px;gap:8px}
+  .group-name{font-size:var(--gname)}
+  .group-prog{font-size:calc(var(--gname) - .06rem)}
+  .group-body{padding:var(--ghead) 10px;gap:var(--gap)}
+  .task{padding:var(--pad) 10px;border-radius:11px}
+  .row{gap:7px}
+  .name{font-size:var(--fs)}
+  .due{font-size:calc(var(--fs) - .06rem);padding:.24em .5em}
+  .mini{padding:0 2px;font-size:calc(var(--fs) + .22rem)}
+  .tick{width:var(--tick);height:var(--tick);border-radius:8px}
+  .steps{margin-left:7px;padding-left:9px;gap:calc(var(--gap) - 2px);margin-top:calc(var(--gap) - 1px)}
+  .step .tick{width:calc(var(--tick) - 5px);height:calc(var(--tick) - 5px)}
+  .task-add input,.step-add input,
+  .task-add button,.step-add button{padding:.34em .8em;font-size:calc(var(--fs) - .02rem)}
+
+  .cheer{top:40%;width:min(86vw,340px);padding:18px 16px 16px}
+  .cheer-beri{width:48px;height:48px}
+}
+
+/* short phones — trim the tins a little further */
+@media (max-width:840px) and (max-height:700px){
+  h1{font-size:1.5rem;-webkit-text-stroke:2.5px var(--cocoa)}
+  .mascot{width:30px}
+  .clock{font-size:clamp(1.45rem,8.6vw,2.1rem)}
+  .nudge{width:40px;height:24px;font-size:.98rem}
+  .chip{font-size:.7rem}
+  .timer-panel .btn{font-size:.68rem;padding:.28em .72em}
+  .day .box{max-height:29px}
+  .stat .big{font-size:.92rem}
+  .stat .lbl{font-size:.7rem}
+  .panel h2{font-size:.86rem}
+  .timer-panel,.streak-panel{padding-top:29px}
+  .sound-btn{padding:.02em .34em;font-size:.5rem;margin-top:0}
+  .nudge{height:22px}
+  .timer-panel > h2,.streak-panel > h2{top:12px}
 }
