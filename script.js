@@ -1,1074 +1,1532 @@
-/* ── STREAK ─────────────────────────────────────────────
-   Everything saves to localStorage, so a reload (or a
-   reopen tomorrow) picks up exactly where you left off.  */
+// ── Hamburger menu ───────────────────────────────────
+const menuBtn   = document.getElementById('menuBtn');
+const menuClose = document.getElementById('menuClose');
+const sideMenu  = document.getElementById('sideMenu');
+const overlay   = document.getElementById('overlay');
 
-const KEY = 'streak.v1';
+function openMenu()  { sideMenu.classList.add('open'); overlay.classList.add('open'); }
+function closeMenu() { sideMenu.classList.remove('open'); overlay.classList.remove('open'); }
 
-const blank = { groups: [], days: [], timerMins: 30, sound: true, skin: 'candy' };
+menuBtn.addEventListener('click', openMenu);
+menuClose.addEventListener('click', closeMenu);
+overlay.addEventListener('click', closeMenu);
 
-function load(){
-  try{
-    const raw = localStorage.getItem(KEY);
-    if(!raw) return {...blank};
-    const d = JSON.parse(raw);
-    const out = {
-      groups: Array.isArray(d.groups) ? d.groups : [],
-      days:   Array.isArray(d.days)   ? d.days   : [],
-      timerMins: Number(d.timerMins) || 30,
-      sound: d.sound !== false,
-      skin: d.skin === 'mono' ? 'mono' : 'candy'
-    };
-    // migrate a flat v1 list into a single "Tasks" group
-    if(!out.groups.length && Array.isArray(d.tasks) && d.tasks.length){
-      out.groups = [{
-        id: 'migrated', name: 'Tasks', collapsed: false,
-        tasks: d.tasks.map(t => ({
-          id: String(t.id), name: String(t.name),
-          done: !!t.done, steps: [], open: false
-        }))
-      }];
+// ── Scroll-triggered animations ──────────────────────
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.querySelectorAll('.animate-in').forEach(el => {
+        el.style.animationPlayState = 'running';
+      });
     }
-    out.groups.forEach(g => {
-      g.tasks = Array.isArray(g.tasks) ? g.tasks : [];
-      g.tasks.forEach(t => { t.steps = Array.isArray(t.steps) ? t.steps : []; });
-    });
-    return out;
-  }catch(e){ return {...blank}; }
-}
-function save(){
-  try{ localStorage.setItem(KEY, JSON.stringify(state)); }
-  catch(e){ /* private mode / storage off — app still works for this session */ }
-}
-
-let state = load();
-
-/* ── date helpers ─────────────────────────────────────── */
-const iso = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-const todayISO = () => iso(new Date());
-const DAY_LABELS = ['Su','Mo','Tu','We','Th','Fr','Sa'];
-
-/* last 7 days, oldest first */
-function lastSeven(){
-  const out = [];
-  for(let i = 6; i >= 0; i--){
-    const d = new Date();
-    d.setHours(12,0,0,0);
-    d.setDate(d.getDate() - i);
-    out.push(d);
-  }
-  return out;
-}
-
-/* ══ TASK MANAGER (groups › tasks › steps) ══════════════ */
-const groupList = document.getElementById('groupList');
-const groupInput = document.getElementById('groupInput');
-const taskCount = document.getElementById('taskCount');
-const clearDone = document.getElementById('clearDone');
-const clearAll  = document.getElementById('clearAll');
-
-const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-
-/* a task counts as done when it is ticked, or when every step is */
-function taskDone(t){
-  if(t.steps && t.steps.length) return t.steps.every(s => s.done);
-  return !!t.done;
-}
-function taskPart(t){
-  return !!(t.steps && t.steps.length && t.steps.some(s => s.done) && !t.steps.every(s => s.done));
-}
-
-/* how far along one task is, 0–1: steps count fractionally */
-function taskFraction(t){
-  if(t.steps && t.steps.length) return t.steps.filter(s => s.done).length / t.steps.length;
-  return t.done ? 1 : 0;
-}
-function groupFraction(g){
-  if(!g.tasks.length) return 0;
-  return g.tasks.reduce((n, t) => n + taskFraction(t), 0) / g.tasks.length;
-}
-
-/* ── due dates ──────────────────────────────────────── */
-const MS_DAY = 86400000;
-
-function daysUntil(dateStr){
-  const d = new Date(dateStr + 'T12:00:00');
-  const now = new Date(); now.setHours(12,0,0,0);
-  return Math.round((d - now) / MS_DAY);
-}
-
-function dueLabel(dateStr){
-  const n = daysUntil(dateStr);
-  if(n === 0)  return 'today';
-  if(n === 1)  return 'tomorrow';
-  if(n === -1) return '1 day late';
-  if(n < 0)    return `${-n} days late`;
-  if(n <= 6)   return `in ${n} days`;
-  const d = new Date(dateStr + 'T12:00:00');
-  return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
-}
-
-function dueClass(t){
-  if(!t.due) return '';
-  if(taskDone(t)) return ' set';
-  const n = daysUntil(t.due);
-  if(n < 0)  return ' set late';
-  if(n === 0) return ' set today';
-  if(n <= 2)  return ' set soon';
-  return ' set';
-}
-
-function isLate(t){ return !!t.due && !taskDone(t) && daysUntil(t.due) < 0; }
-
-/* two little music notes drift off whatever you just ticked */
-function popNotes(el){
-  if(state.skin === 'mono') return;                       // no ♪ in the plain skin
-  if(window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  const r = el.getBoundingClientRect();
-  ['♪', '♫'].forEach((glyph, i) => {
-    const n = document.createElement('span');
-    n.className = 'note';
-    n.textContent = glyph;
-    n.style.left = (r.left + r.width / 2 - 6) + 'px';
-    n.style.top  = (r.top - 4) + 'px';
-    n.style.setProperty('--nx', (i ? 18 : -16) + 'px');
-    n.style.animationDelay = (i * 90) + 'ms';
-    document.body.appendChild(n);
-    setTimeout(() => n.remove(), 1100);
   });
-}
+}, { threshold: 0.2 });
 
-function tickBtn(label, on, part, onClick){
-  const b = document.createElement('button');
-  b.type = 'button';
-  b.className = 'tick' + (part ? ' part' : '');
-  b.innerHTML = '<svg viewBox="0 0 100 100" aria-hidden="true"><use href="#cone"/></svg>';
-  b.setAttribute('aria-label', (on ? 'Mark unfinished: ' : 'Mark finished: ') + label);
-  b.addEventListener('click', e => { if(!on) popNotes(e.currentTarget); onClick(e); });
-  return b;
-}
-function miniBtn(cls, glyph, label, onClick){
-  const b = document.createElement('button');
-  b.type = 'button';
-  b.className = 'mini ' + cls;
-  b.textContent = glyph;
-  b.setAttribute('aria-label', label);
-  b.addEventListener('click', onClick);
-  return b;
-}
-function inlineAdd(cls, placeholder, maxlen, onAdd){
-  const form = document.createElement('form');
-  form.className = cls;
-  form.autocomplete = 'off';
-  const input = document.createElement('input');
-  input.type = 'text';
-  input.maxLength = maxlen;
-  input.placeholder = placeholder;
-  const btn = document.createElement('button');
-  btn.type = 'submit';
-  btn.textContent = 'add';
-  form.append(input, btn);
-  form.addEventListener('submit', e => {
-    e.preventDefault();
-    const v = input.value.trim();
-    if(!v) return;
-    input.value = '';
-    onAdd(v);
+document.querySelectorAll('.snap-section').forEach(section => {
+  section.querySelectorAll('.animate-in').forEach(el => {
+    el.style.animationPlayState = 'paused';
   });
-  return form;
-}
+  observer.observe(section);
+});
 
-function renderStep(t, s){
-  const li = document.createElement('li');
-  li.className = 'step' + (s.done ? ' done' : '');
-  li.append(
-    tickBtn(s.name, s.done, false, () => { s.done = !s.done; save(); renderGroups(); }),
-    Object.assign(document.createElement('span'), { className: 'name', textContent: s.name }),
-    miniBtn('del', '×', 'Delete step: ' + s.name, () => {
-      t.steps = t.steps.filter(x => x.id !== s.id);
-      save(); renderGroups();
-    })
-  );
-  return li;
-}
 
-function renderTask(g, t){
-  const done = taskDone(t);
-  const wrap = document.createElement('div');
-  wrap.className = 'task' + (done ? ' done' : '');
-  wrap.dataset.tid = t.id;
+/* ══ PHOTO BOOTH (breathing.html only) ═══════════════
+   Wrapped in a function so its variables stay private and can't
+   collide with anything above. The guard on the first line means
+   this file is safe to load on every page — on the home page,
+   timer or task manager there is no #stage element, so the whole
+   booth simply switches itself off.                              */
+function initPhotoBooth() {
+  if (!document.getElementById('stage')) return;   // not the booth page
+  /* ── elements ───────────────────────────────────────── */
+  const video     = document.getElementById('video');
+  const stage     = document.getElementById('stage');
+  const stageMsgText = document.getElementById('stageMsgText');
+  const countdown = document.getElementById('countdown');
+  const flash     = document.getElementById('flash');
+  const shotPip   = document.getElementById('shotPip');
+  const startBtn  = document.getElementById('startBtn');
+  const uploadBtn = document.getElementById('uploadBtn');
+  const fileInput = document.getElementById('fileInput');
+  const downloadBtn = document.getElementById('downloadBtn');
+  const clearBtn  = document.getElementById('clearBtn');
+  const toastEl   = document.getElementById('toast');
+  const slots     = [...document.querySelectorAll('.slot')];
+  const stripEl   = document.getElementById('strip');
 
-  const row = document.createElement('div');
-  row.className = 'row';
+  /* ── STATE ───────────────────────────────────────────
+     Everything the page needs to know, in four variables. Any time one
+     of these changes we call render() to redraw the strip from it. This
+     is the "single source of truth" idea — the screen is always a
+     picture of these variables, so the two can never drift apart.
 
-  const tick = tickBtn(t.name, done, taskPart(t), () => {
-    const next = !taskDone(t);
-    t.done = next;
-    if(t.steps) t.steps.forEach(s => s.done = next);   // ticking a task ticks its steps
-    save(); renderGroups();
-  });
+     shots  : the 4 slots. null = empty. Photos are stored UNFILTERED as
+              base64 data URLs, and the filter is applied when drawing.
+              That's why switching filters instantly restyles photos you
+              already took — the originals were never modified.
+     stream : the live MediaStream from the webcam, or null if the camera
+              hasn't been opened. Also used as the "is the camera on?"
+              flag that decides what the main button does.
+     busy   : true while a countdown sequence is running. Every button
+              checks this so you can't start a second capture mid-shot.
+     filter : which filter is currently selected.
+     OUT    : every captured photo is normalised to 720x720, so webcam
+              shots and uploaded photos are always the same size.        */
+  const OUT = 720;                 // captured square size in px
+  let shots  = [null, null, null, null];   // raw (unfiltered) data URLs
+  let stream = null;
+  let busy   = false;
+  let filter = 'none';
 
-  const name = document.createElement('span');
-  name.className = 'name';
-  name.textContent = t.name + (t.steps && t.steps.length
-    ? `  (${t.steps.filter(s => s.done).length}/${t.steps.length})` : '');
+  /* Filters are plain CSS filter strings. Storing them in one object
+     means the same value can be reused in three places: the live video
+     preview, the <img> tags in the strip, and the download canvas
+     (canvas has a ctx.filter property that accepts identical syntax).
+     Add a new look by adding one line here plus one chip button.        */
+  const FILTERS = {
+    none:  'none',
+    bw:    'grayscale(1) contrast(1.08)',
+    warm:  'saturate(1.25) sepia(.28) contrast(1.03)',
+    cool:  'saturate(1.1) hue-rotate(180deg) brightness(1.04)',
+    pop:   'saturate(1.7) contrast(1.22)',
+    dream: 'saturate(1.15) brightness(1.12) contrast(.92) blur(.4px)'
+  };
 
-  /* due-date pill — click to pick, click again to change, blank to clear */
-  const due = document.createElement('button');
-  due.type = 'button';
-  due.className = 'due' + dueClass(t);
-  due.textContent = t.due ? dueLabel(t.due) : 'due?';
-  due.setAttribute('aria-label', t.due ? `Due ${t.due} — change` : 'Set a due date for: ' + t.name);
-  due.addEventListener('click', () => {
-    const input = document.createElement('input');
-    input.type = 'date';
-    input.className = 'due-input';
-    input.value = t.due || '';
-    const commit = () => {
-      t.due = input.value || null;
-      save(); renderGroups();
-    };
-    input.addEventListener('change', commit);
-    input.addEventListener('blur', commit);
-    input.addEventListener('keydown', e => { if(e.key === 'Escape') renderGroups(); });
-    due.replaceWith(input);
-    input.focus();
-    if(input.showPicker) try{ input.showPicker(); }catch(e){}
-  });
+  /* toast(): the little black pill that slides up at the bottom.
+     clearTimeout on each call cancels the previous hide-timer, so rapid
+     messages don't fight each other — the newest one always gets its
+     full display time.                                                  */
+  const toast = (msg, ms = 2600) => {
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => toastEl.classList.remove('show'), ms);
+  };
 
-  row.append(
-    tick, name, due,
-    miniBtn('plus', '+', 'Add a step to: ' + t.name, () => {
-      t.open = true; save(); renderGroups();
-      const el = wrap.querySelector('.step-add input');
-      if(el) el.focus();
-    }),
-    miniBtn('del', '×', 'Delete task: ' + t.name, () => {
-      g.tasks = g.tasks.filter(x => x.id !== t.id);
-      save(); renderGroups();
-    })
-  );
-  wrap.appendChild(row);
+  /* sleep(): wraps setTimeout in a Promise so we can write
+     'await sleep(1000)' inside an async function. This is what lets the
+     countdown read like a straight list of steps instead of a nest of
+     callbacks — see countTo() below.                                    */
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-  const hasSteps = t.steps && t.steps.length;
-  if(hasSteps || t.open){
-    const ul = document.createElement('ul');
-    ul.className = 'steps';
-    (t.steps || []).forEach(s => ul.appendChild(renderStep(t, s)));
-    const add = inlineAdd('step-add', 'a smaller step…', 60, v => {
-      t.steps = t.steps || [];
-      t.steps.push({ id: uid(), name: v, done: false });
-      t.done = false;
-      t.open = true;
-      save(); renderGroups();
-    });
-    ul.appendChild(add);
-    wrap.appendChild(ul);
+  /* ── OPENING THE CAMERA ──────────────────────────────
+     getUserMedia() asks the browser for camera access and returns a
+     Promise. It's async because the user has to click Allow first — the
+     await pauses here until they respond.
+
+     Two things commonly make this fail, so both are handled explicitly:
+       NotAllowedError — the user (or a previous 'Block') denied it
+       NotFoundError   — no camera hardware
+     There's also the file:// case: browsers only expose cameras on
+     "secure contexts" (https or localhost), so double-clicking the HTML
+     file will always fail. The check on location.protocol catches that
+     and explains it rather than showing a confusing generic error.
+
+     Whatever happens we return true/false so the caller knows whether
+     it's safe to continue into a capture sequence.                      */
+  async function startCamera() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      stageMsgText.innerHTML = 'This browser can\'t reach the camera.<br>Try uploading photos instead.';
+      toast('Camera unavailable — use Upload photos.', 5000);
+      return false;
+    }
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 1280 } },
+        audio: false
+      });
+      video.srcObject = stream;
+      await video.play();
+      stage.classList.remove('idle');
+      stage.classList.add('live');
+      setButtons();
+      toast('Camera ready — press Take 4 photos.');
+      return true;
+    } catch (err) {
+      /* iOS has a long history of blocking the camera in home-screen
+         apps, and it forgets the permission between launches. If we're
+         running standalone on an iPhone, that's by far the most likely
+         cause — so say so, and give the workaround that actually
+         works: open the same page in Safari instead.                 */
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+                    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      const standalone = window.matchMedia('(display-mode: standalone)').matches ||
+                         navigator.standalone === true;
+
+      let msg = 'Could not open the camera.';
+      if (isIOS && standalone) {
+        msg = 'iPhones sometimes block the camera in home screen apps. Open this page in Safari instead.';
+      }
+      else if (err.name === 'NotAllowedError')      msg = 'Camera permission was blocked. Allow it in your browser settings.';
+      else if (err.name === 'NotFoundError')        msg = 'No camera found on this device.';
+      else if (location.protocol === 'file:')       msg = 'Cameras need a local server, not a file:// page.';
+
+      stageMsgText.innerHTML = msg + '<br>You can still upload photos.';
+      toast(msg, 6000);
+      return false;
+    }
   }
 
-  return wrap;
-}
+  /* ── CAPTURING ONE SQUARE FRAME ──────────────────────
+     This is the heart of the booth. A <video> element can be handed
+     straight to canvas drawImage(), which grabs whatever frame is on
+     screen at that instant.
 
-function renderGroup(g){
-  const total = g.tasks.length;
-  const done = g.tasks.filter(taskDone).length;
+     The 9-argument form of drawImage is what does the cropping:
+       drawImage(source, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight)
+                         └── region to take FROM ──┘ └── where to put IT ┘
 
-  const box = document.createElement('section');
-  box.className = 'group' + (g.collapsed ? ' collapsed' : '');
-  box.dataset.gid = g.id;
+     A webcam gives 1280x720 (landscape), so we take the biggest centred
+     square — 720x720 starting 280px from the left — and paint it into a
+     720x720 canvas. Nothing is squashed, the sides are simply trimmed.
 
-  const head = document.createElement('div');
-  head.className = 'group-head';
-  head.append(
-    miniBtn('caret', '▼', (g.collapsed ? 'Expand ' : 'Collapse ') + g.name, () => {
-      g.collapsed = !g.collapsed; save(); renderGroups();
-    }),
-    Object.assign(document.createElement('span'), { className: 'group-name', textContent: g.name }),
-    Object.assign(document.createElement('span'), {
-      className: 'group-prog',
-      textContent: total ? `${done}/${total}` : 'empty'
-    }),
-    miniBtn('del', g.armed ? 'sure?' : '×', 'Delete group: ' + g.name, () => {
-      if(g.tasks.length && !g.armed){          // click once to arm, again to delete
-        state.groups.forEach(x => x.armed = false);
-        g.armed = true;
-        renderGroups();
+     The translate + scale(-1, 1) pair mirrors the drawing horizontally.
+     It's needed because the CSS mirrors the preview; without it your
+     photo would come out the opposite way round from what you posed
+     for, and any text in shot would read backwards.
+
+     toDataURL() then serialises the canvas into a base64 PNG string we
+     can drop straight into an <img src>.                                */
+  function grabSquare() {
+    const vw = video.videoWidth, vh = video.videoHeight;
+    if (!vw || !vh) return null;
+    const size = Math.min(vw, vh);              // biggest centred square
+    const sx = (vw - size) / 2, sy = (vh - size) / 2;
+
+    const c = document.createElement('canvas');
+    c.width = c.height = OUT;
+    const ctx = c.getContext('2d');
+    ctx.translate(OUT, 0);
+    ctx.scale(-1, 1);                            // match the mirrored preview
+    ctx.drawImage(video, sx, sy, size, size, 0, 0, OUT, OUT);
+    return c.toDataURL('image/png');
+  }
+
+  /* countTo(): shows 3, 2, 1 with a one-second gap.
+     Rewriting innerHTML each tick replaces the <span>, and because a
+     brand-new element is created the CSS 'pop' animation restarts from
+     the beginning every number. Reusing the same span would only animate
+     once.                                                               */
+  async function countTo(n) {
+    countdown.classList.add('show');
+    for (let i = n; i > 0; i--) {
+      countdown.innerHTML = '<span>' + i + '</span>';
+      await sleep(1000);
+    }
+    countdown.classList.remove('show');
+    countdown.innerHTML = '';
+  }
+
+  /* captureInto(): the full ritual for ONE photo —
+     label it, count down, flash, grab the frame, breathe.
+     Written as a separate function because two different flows need it:
+     the automatic 4-shot run, and a single retake. Note the capture
+     happens on the same line the flash starts, so the photo is taken at
+     the peak of the white flash, exactly like a real camera.            */
+  /* 'step' and 'ofN' are only for the on-screen counter. They're
+     separate from 'index' because the shots being taken may not be
+     slots 1-4 any more — if two slots are already filled by uploads,
+     this is "Shot 1 of 2" while writing into slot 3.               */
+  async function captureInto(index, step, ofN) {
+    shotPip.textContent = 'Shot ' + (step || index + 1) + ' of ' + (ofN || 4);
+    shotPip.classList.add('show');
+    await countTo(3);
+
+    /* Light FIRST, then shoot. The screen going white acts as a fill
+       light on your face, but the browser needs a moment to actually
+       paint it and the webcam needs a moment to adjust its exposure to
+       the extra brightness. Capturing on the same line as the flash
+       would grab the frame before any of that happened — you'd get the
+       animation but none of the lighting benefit.
+
+       260ms lands inside the 315ms the flash holds at full white.     */
+    flash.classList.add('fire');
+    await sleep(260);
+    const data = grabSquare();
+
+    setTimeout(function () { flash.classList.remove('fire'); }, 800);
+    if (data) { shots[index] = data; render(); }
+    await sleep(700);
+  }
+
+  /* runSequence(): the automatic 4-shot run.
+     Because captureInto() is awaited, this loop pauses ~3.7 seconds each
+     time round — a plain for-loop without await would fire all four
+     captures in the same millisecond and give four identical photos.
+     'busy' is raised before the loop and lowered after, which is what
+     locks the buttons for the whole ~15-second run.                     */
+  /* Fill only the EMPTY slots. The old version always ran 0,1,2,3, so
+     if you'd uploaded a photo first it got overwritten by shot one.
+     Now uploads and camera shots share the strip properly, and if
+     every slot is full it starts fresh rather than doing nothing.   */
+  async function runSequence() {
+    let targets = [];
+    for (let i = 0; i < 4; i++) if (!shots[i]) targets.push(i);
+    if (!targets.length) {                      // strip full — start over
+      shots = [null, null, null, null];
+      render();
+      targets = [0, 1, 2, 3];
+    }
+
+    busy = true; setButtons();
+    for (let n = 0; n < targets.length; n++) {
+      await captureInto(targets[n], n + 1, targets.length);
+    }
+    shotPip.classList.remove('show');
+    busy = false; setButtons();
+    toast('Strip complete! Download it or retake any shot.');
+  }
+
+  async function retake(i) {
+    if (busy) return;
+    if (!stream) { const ok = await startCamera(); if (!ok) return; }
+    busy = true; setButtons();
+    await captureInto(i, 1, 1);
+    shotPip.classList.remove('show');
+    busy = false; setButtons();
+  }
+
+  /* The main button does two different jobs depending on state, which is
+     why it's one button and not two. First press = open the camera (and
+     stop there, so you can check your framing). Second press = run the
+     sequence. setButtons() relabels it to match.                        */
+  startBtn.addEventListener('click', async function () {
+    if (busy) return;
+    if (!stream) { await startCamera(); return; }   // first press opens the camera
+    runSequence();                                   // second press starts the 4 shots
+  });
+
+  /* ── UPLOADS ─────────────────────────────────────────
+     The real <input type="file"> is hidden because browsers barely let
+     you style it. Clicking our pretty button programmatically clicks the
+     hidden input instead — a standard trick.                            */
+  /* null = "fill the empty slots in order". A number means a specific
+     slot asked for a photo, set by the Upload button inside that slot. */
+  let uploadTarget = null;
+
+  uploadBtn.addEventListener('click', function () {
+    uploadTarget = null;
+    fileInput.click();
+  });
+
+  fileInput.addEventListener('change', async function (e) {
+    const files = [].slice.call(e.target.files).filter(f => f.type.indexOf('image/') === 0);
+    if (!files.length) { uploadTarget = null; return; }
+
+    let placed = 0;
+    for (const f of files) {
+      /* a slot asked by name? use it, then fall back to filling gaps
+         for any further files in the same selection */
+      let idx;
+      if (uploadTarget !== null) { idx = uploadTarget; uploadTarget = null; }
+      else                       { idx = shots.indexOf(null); }
+
+      if (idx === -1) { toast('Strip is full — clear it or retake a shot.'); break; }
+      try { shots[idx] = await fileToSquare(f); placed++; render(); }
+      catch (err) { toast('One image could not be read.'); }
+    }
+    uploadTarget = null;
+    if (placed) toast('Added ' + placed + ' photo' + (placed > 1 ? 's' : '') + '.');
+    /* Resetting .value matters: without it, picking the SAME file twice
+       in a row fires no 'change' event, because the value didn't change. */
+    fileInput.value = '';
+  });
+
+  /* fileToSquare(): put an uploaded photo through the identical
+     centre-crop as a webcam shot, so mixed sources look consistent in
+     the strip. Image loading is asynchronous, hence the Promise wrapper
+     — the pixels don't exist until img.onload fires.
+     createObjectURL makes a temporary local reference to the file;
+     revokeObjectURL releases it afterwards so memory isn't leaked. The
+     file never leaves the computer.                                     */
+  function fileToSquare(file) {
+    return new Promise(function (resolve, reject) {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = function () {
+        const size = Math.min(img.width, img.height);      // centre-crop to square
+        const sx = (img.width - size) / 2, sy = (img.height - size) / 2;
+        const c = document.createElement('canvas');
+        c.width = c.height = OUT;
+        c.getContext('2d').drawImage(img, sx, sy, size, size, 0, 0, OUT, OUT);
+        URL.revokeObjectURL(url);
+        resolve(c.toDataURL('image/png'));
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); reject(new Error('bad image')); };
+      img.src = url;
+    });
+  }
+
+  /* ── filters ────────────────────────────────────────── */
+  document.querySelectorAll('.chip').forEach(function (chip) {
+    chip.addEventListener('click', function () {
+      filter = chip.dataset.filter;
+      document.querySelectorAll('.chip').forEach(function (c) {
+        c.setAttribute('aria-pressed', c === chip);
+      });
+      video.style.filter = FILTERS[filter];
+      render();
+    });
+  });
+
+  /* ── RENDERING THE STRIP ─────────────────────────────
+     One function redraws all four slots from the 'shots' array. Nothing
+     else in the code touches the strip's HTML directly — take a photo,
+     upload one, change filter, clear, retake, they all just update the
+     data and call render(). That keeps the display honest and means new
+     features only need to change the array.
+
+     The filter is injected as an inline style here rather than baked
+     into the stored image, which is why filters are non-destructive.    */
+  function render() {
+    slots.forEach(function (slot, i) {
+      const data = shots[i];
+      if (!data) {
+        /* empty slots get their own upload button, so a photo can go
+           into slot 3 without filling 1 and 2 first */
+        slot.innerHTML = '<span class="slot-num">' + (i + 1) + '</span>' +
+                         '<button class="slot-upload" data-up="' + i + '">Upload</button>';
         return;
       }
-      state.groups = state.groups.filter(x => x.id !== g.id);
-      save(); renderGroups();
-    })
-  );
-  head.querySelector('.caret').className = 'caret';
-
-  const lateCount = g.tasks.filter(isLate).length;
-  if(lateCount){
-    const badge = document.createElement('span');
-    badge.className = 'group-late';
-    badge.textContent = lateCount + ' late';
-    head.insertBefore(badge, head.querySelector('.group-prog'));
-  }
-  box.appendChild(head);
-
-  const gbar = document.createElement('div');
-  gbar.className = 'group-bar';
-  const gfill = document.createElement('span');
-  gfill.style.width = Math.round(groupFraction(g) * 100) + '%';
-  gbar.appendChild(gfill);
-  box.appendChild(gbar);
-
-  const body = document.createElement('div');
-  body.className = 'group-body';
-  g.tasks.forEach(t => body.appendChild(renderTask(g, t)));
-  body.appendChild(inlineAdd('task-add', 'add a task to ' + g.name + '…', 80, v => {
-    const id = uid();
-    g.tasks.push({ id, name: v, done: false, steps: [], open: false });
-    g.collapsed = false;
-    save(); renderGroups();
-    revealNew(`[data-tid="${id}"]`);
-  }));
-  box.appendChild(body);
-
-  return box;
-}
-
-function renderGroups(){
-  groupList.innerHTML = '';
-  state.groups.forEach(g => groupList.appendChild(renderGroup(g)));
-
-  const all = state.groups.flatMap(g => g.tasks);
-  const done = all.filter(taskDone).length;
-  const left = all.length - done;
-  taskCount.textContent = state.groups.length === 0
-    ? 'no groups yet'
-    : (all.length === 0 ? 'no tasks yet' : `${left} to go · ${done} done`);
-
-  clearDone.style.display = done ? '' : 'none';
-  clearAll.style.display = state.groups.length ? '' : 'none';
-  if(!state.groups.length) disarmClearAll();
-  renderProgress(all);
-  if(typeof queueFit === 'function') queueFit();
-  if(typeof watchGroups === 'function') watchGroups();
-  if(typeof bubbleForState === 'function') say(bubbleForState());
-}
-
-/* ══ PROGRESS BAR + CELEBRATION ═════════════════════════ */
-const fillEl = document.getElementById('fill');
-const barEl  = document.getElementById('bar');
-const pctEl  = document.getElementById('pct');
-const rider  = document.getElementById('rider');
-
-let wasFull = null;   // null until the first render, so a reload doesn't re-fire
-
-function renderProgress(all){
-  const pct = all.length
-    ? Math.round(all.reduce((n, t) => n + taskFraction(t), 0) / all.length * 100)
-    : 0;
-
-  fillEl.style.width = pct + '%';
-  if(rider){
-    rider.style.left = pct + '%';
-    rider.classList.toggle('hidden', pct === 0);
-  }
-  fillEl.classList.toggle('empty', pct === 0);
-  fillEl.classList.toggle('full', pct === 100 && all.length > 0);
-  pctEl.textContent = pct + '%';
-  pctEl.classList.toggle('full', pct === 100 && all.length > 0);
-  barEl.setAttribute('aria-valuenow', pct);
-
-  const full = pct === 100 && all.length > 0;
-  if(full && wasFull === false) celebrate();     // only on the moment it flips
-  wasFull = full;
-}
-
-const cheer = document.getElementById('cheer');
-const canvas = document.getElementById('confetti');
-const ctx2d = canvas.getContext ? canvas.getContext('2d') : null;
-let confettiId = null;
-
-function celebrate(){
-  cheer.classList.add('show');
-  setTimeout(() => cheer.classList.remove('show'), 3600);
-  if(rider) { rider.classList.add('cheer'); setTimeout(()=>rider.classList.remove('cheer'), 800); }
-  beep();
-  if(!ctx2d) return;
-  if(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-
-  canvas.width  = window.innerWidth;
-  canvas.height = window.innerHeight;
-  canvas.classList.add('on');
-
-  /* read the live palette so confetti matches whichever skin is on */
-  const css = getComputedStyle(document.documentElement);
-  const ink = (name, fallback) => (css.getPropertyValue(name).trim() || fallback);
-  const COCOA  = ink('--cocoa',  '#4a2b22'),
-        BLUSH  = state.skin === 'mono' ? '#e6e6e4' : ink('--blush',  '#f8b9c6'),
-        CHOC   = state.skin === 'mono' ? '#5a5a58' : ink('--cocoa-mid', '#8a5240'),
-        BERRY  = state.skin === 'mono' ? '#8e8e8c' : ink('--berry',  '#e1323c'),
-        LEAF   = ink('--leaf',   '#57b15a'),
-        BUTTER = ink('--butter', '#ffd24a');
-
-  /* one candy cone, drawn as a rounded wedge with a pink cap */
-  function drawCone(x, y, s, rot){
-    ctx2d.save();
-    ctx2d.translate(x, y); ctx2d.rotate(rot); ctx2d.scale(s / 100, s / 100);
-    ctx2d.lineWidth = 8; ctx2d.strokeStyle = COCOA; ctx2d.lineJoin = 'round';
-    const body = () => {
-      ctx2d.beginPath();
-      ctx2d.moveTo(0, -42);
-      ctx2d.bezierCurveTo(-4, -42, -8, -36, -11, -25);
-      ctx2d.lineTo(-29, 18);
-      ctx2d.bezierCurveTo(-31, 25, -29, 28, -23, 28);
-      ctx2d.quadraticCurveTo(-15, 35, -8, 28);      // fluted skirt
-      ctx2d.quadraticCurveTo(0, 35, 8, 28);
-      ctx2d.quadraticCurveTo(15, 35, 23, 28);
-      ctx2d.bezierCurveTo(29, 28, 31, 25, 29, 18);
-      ctx2d.lineTo(11, -25);
-      ctx2d.bezierCurveTo(8, -36, 4, -42, 0, -42);
-      ctx2d.closePath();
-    };
-    body(); ctx2d.fillStyle = CHOC; ctx2d.fill(); ctx2d.stroke();
-    ctx2d.beginPath();                                  // pink cap
-    ctx2d.moveTo(0, -42);
-    ctx2d.bezierCurveTo(-4, -42, -8, -36, -11, -25);
-    ctx2d.lineTo(-15, -10); ctx2d.lineTo(15, -10); ctx2d.lineTo(11, -25);
-    ctx2d.bezierCurveTo(8, -36, 4, -42, 0, -42);
-    ctx2d.closePath();
-    ctx2d.fillStyle = BLUSH; ctx2d.fill(); ctx2d.stroke();
-    ctx2d.restore();
-  }
-
-  /* one strawberry */
-  function drawBerry(x, y, s, rot){
-    ctx2d.save();
-    ctx2d.translate(x, y); ctx2d.rotate(rot); ctx2d.scale(s / 100, s / 100);
-    ctx2d.lineWidth = 7; ctx2d.strokeStyle = COCOA; ctx2d.lineJoin = 'round';
-    ctx2d.beginPath();
-    ctx2d.moveTo(0, -22);
-    ctx2d.bezierCurveTo(28, -22, 34, -2, 30, 14);
-    ctx2d.bezierCurveTo(26, 30, 12, 40, 0, 46);
-    ctx2d.bezierCurveTo(-12, 40, -26, 30, -30, 14);
-    ctx2d.bezierCurveTo(-34, -2, -28, -22, 0, -22);
-    ctx2d.closePath();
-    ctx2d.fillStyle = BERRY; ctx2d.fill(); ctx2d.stroke();
-    ctx2d.beginPath();                                  // calyx
-    ctx2d.moveTo(-18, -24); ctx2d.lineTo(0, -34); ctx2d.lineTo(18, -24);
-    ctx2d.lineTo(0, -14); ctx2d.closePath();
-    ctx2d.fillStyle = LEAF; ctx2d.fill(); ctx2d.stroke();
-    ctx2d.restore();
-  }
-
-  /* a little four-point sparkle */
-  function drawSpark(x, y, s, rot){
-    ctx2d.save();
-    ctx2d.translate(x, y); ctx2d.rotate(rot); ctx2d.scale(s / 100, s / 100);
-    ctx2d.beginPath();
-    ctx2d.moveTo(0, -40); ctx2d.quadraticCurveTo(6, -6, 40, 0);
-    ctx2d.quadraticCurveTo(6, 6, 0, 40); ctx2d.quadraticCurveTo(-6, 6, -40, 0);
-    ctx2d.quadraticCurveTo(-6, -6, 0, -40);
-    ctx2d.closePath();
-    ctx2d.fillStyle = BUTTER; ctx2d.fill();
-    ctx2d.lineWidth = 6; ctx2d.strokeStyle = COCOA; ctx2d.stroke();
-    ctx2d.restore();
-  }
-
-  /* mono celebrates with plain chips rather than sweets */
-  function drawChip(x, y, s, rot){
-    ctx2d.save();
-    ctx2d.translate(x, y); ctx2d.rotate(rot);
-    const w = s * 0.62, h = s * 0.42;
-    ctx2d.fillStyle = [COCOA, CHOC, BLUSH][Math.floor(Math.abs(Math.sin(x)) * 3) % 3];
-    ctx2d.strokeStyle = COCOA; ctx2d.lineWidth = 2;
-    ctx2d.beginPath();
-    if(ctx2d.roundRect) ctx2d.roundRect(-w/2, -h/2, w, h, 2);
-    else ctx2d.rect(-w/2, -h/2, w, h);
-    ctx2d.fill(); ctx2d.stroke();
-    ctx2d.restore();
-  }
-
-  const KINDS = state.skin === 'mono'
-    ? [drawChip]
-    : [drawCone, drawCone, drawBerry, drawSpark];
-  const bits = Array.from({ length: 74 }, () => ({
-    x: Math.random() * canvas.width,
-    y: -40 - Math.random() * canvas.height * 0.6,
-    s: 20 + Math.random() * 20,
-    vy: 2.4 + Math.random() * 3.2,
-    sway: 0.6 + Math.random() * 1.6,        // side-to-side drift
-    phase: Math.random() * Math.PI * 2,
-    rot: Math.random() * Math.PI,
-    vr: -0.11 + Math.random() * 0.22,
-    draw: KINDS[Math.floor(Math.random() * KINDS.length)]
-  }));
-
-  const started = Date.now();
-  clearInterval(confettiId);
-  confettiId = setInterval(() => {
-    const t = (Date.now() - started) / 1000;
-    ctx2d.clearRect(0, 0, canvas.width, canvas.height);
-    bits.forEach(b => {
-      b.y += b.vy; b.rot += b.vr;
-      b.draw(b.x + Math.sin(t * 2 + b.phase) * b.sway * 9, b.y, b.s, b.rot);
+      slot.innerHTML =
+        '<img src="' + data + '" alt="Photo ' + (i + 1) + '" style="filter:' + FILTERS[filter] + '">' +
+        '<button class="retake" data-i="' + i + '">Retake</button>';
     });
-    if(Date.now() - started > 4600){
-      clearInterval(confettiId); confettiId = null;
-      ctx2d.clearRect(0, 0, canvas.width, canvas.height);
-      canvas.classList.remove('on');
-    }
-  }, 1000 / 45);
-}
-
-function revealNew(selector){
-  requestAnimationFrame(() => requestAnimationFrame(() => {
-    const el = groupList.querySelector(selector);
-    if(!el) return;
-    el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-    el.classList.add('just-added');
-    setTimeout(() => el.classList.remove('just-added'), 1200);
-  }));
-}
-
-document.getElementById('addGroupForm').addEventListener('submit', e => {
-  e.preventDefault();
-  const name = groupInput.value.trim();
-  if(!name) return;
-  const id = uid();
-  state.groups.push({ id, name, collapsed: false, tasks: [] });
-  groupInput.value = '';
-  save(); renderGroups();
-  revealNew(`[data-gid="${id}"]`);
-});
-
-/* clear all — one tap arms it, a second within 4s wipes the board */
-let clearArmed = false, clearTimer = null;
-
-function disarmClearAll(){
-  clearArmed = false;
-  clearTimeout(clearTimer);
-  clearAll.classList.remove('armed');
-  clearAll.textContent = 'clear all';
-}
-
-clearAll.addEventListener('click', () => {
-  if(!clearArmed){
-    clearArmed = true;
-    clearAll.classList.add('armed');
-    clearAll.textContent = 'erase everything?';
-    clearTimer = setTimeout(disarmClearAll, 4000);
-    return;
+    setButtons();
   }
-  disarmClearAll();
-  state.groups = [];
-  save(); renderGroups();
-});
 
-clearDone.addEventListener('click', () => {
-  state.groups.forEach(g => { g.tasks = g.tasks.filter(t => !taskDone(t)); });
-  save(); renderGroups();
-});
+  /* ══ STICKERS ════════════════════════════════════════
+     Add your own art by dropping transparent PNGs into the stickers/
+     folder and listing the filenames here. JavaScript can't read a
+     folder's contents, so this list is how it knows what exists — if a
+     file is missing its swatch quietly removes itself from the tray.
 
-/* ══ DAILY STREAK ═══════════════════════════════════════ */
-const weekRow    = document.getElementById('weekRow');
-const curStreakEl  = document.getElementById('curStreak');
-const bestStreakEl = document.getElementById('bestStreak');
-const totalDaysEl  = document.getElementById('totalDays');
+     Positions are stored as FRACTIONS of the strip (0 to 1), never
+     pixels. That's the whole trick: the strip is ~300px wide on screen
+     but 668px on the download canvas, and fractions map onto both
+     without any conversion maths.                                     */
+  const STICKER_DIR   = '';
+  const STICKER_FILES = ['Bearlogo3.png','stickers/TEST2_S1.png', 'stickers/TEST2.png', 'stickers/TEST2_S2.png', 'stickers/TEST2_S3.png', 'stickers/TEST3_F.png',];/*---------Sticker eddition edit line Uploads here-----------------*/
+  /* Sticker width as a fraction of the strip's width.
+     One photo is 600px of the strip's 668px, so 0.90 makes a sticker
+     exactly one photo wide. Reference points:
+       0.22  a quarter of a photo      0.67  three-quarters
+       0.45  half a photo              0.90  exactly one photo
+     Export art at roughly 2x the drawn size to stay crisp —
+     at 0.90 that's a 1200 x 1200px PNG.                              */
+  const STICKER_W     = 0.90;
+  let placed = [];                     // [{ src, x, y }] — x/y are 0-1
 
-function markToday(){
-  const t = todayISO();
-  if(!state.days.includes(t)){
-    state.days.push(t);
-    save(); renderWeek();
+  /* Push STICKER_W into CSS so the on-screen size is driven by the same
+     number as the download. Change STICKER_W alone and both follow.   */
+  stripEl.style.setProperty('--sticker-w', (STICKER_W * 100) + '%');
+
+  const tray              = document.getElementById('stickerTray');
+  const clearStickersBtn  = document.getElementById('clearStickersBtn');
+  const stickerUploadBtn  = document.getElementById('stickerUploadBtn');
+  const stickerUpload     = document.getElementById('stickerUpload');
+
+  /* addSwatch(): builds one tappable thumbnail in the tray.
+     Used for both sources — the presets above and anything you upload —
+     so uploaded art behaves identically to art in the folder.
+
+     'missingRemoves' is only true for presets: if the file isn't in the
+     stickers/ folder the swatch deletes itself rather than showing a
+     broken image. Uploads can't fail that way.                        */
+  function addSwatch(src, label, missingRemoves) {
+    const b  = document.createElement('button');
+    const im = document.createElement('img');
+    b.type  = 'button';
+    b.title = 'Add ' + label;
+    im.src  = src;
+    im.alt  = label;
+    if (missingRemoves) im.onerror = function () { b.remove(); };
+    b.appendChild(im);
+    b.addEventListener('click', function () { addSticker(src); });
+    tray.appendChild(b);
+    return b;
   }
-}
 
-function currentStreak(){
-  const set = new Set(state.days);
-  const d = new Date(); d.setHours(12,0,0,0);
-  // today not ticked yet shouldn't break yesterday's run
-  if(!set.has(iso(d))) d.setDate(d.getDate() - 1);
-  let n = 0;
-  while(set.has(iso(d))){ n++; d.setDate(d.getDate() - 1); }
-  return n;
-}
-
-function bestStreak(){
-  const sorted = [...new Set(state.days)].sort();
-  let best = 0, run = 0, prev = null;
-  for(const s of sorted){
-    const d = new Date(s + 'T12:00:00');
-    if(prev && (d - prev) === 86400000) run++;
-    else run = 1;
-    best = Math.max(best, run);
-    prev = d;
-  }
-  return best;
-}
-
-function renderWeek(){
-  weekRow.innerHTML = '';
-  const t = todayISO();
-
-  lastSeven().forEach(d => {
-    const key = iso(d);
-    const on  = state.days.includes(key);
-
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'day' + (on ? ' on' : '') + (key === t ? ' is-today' : '');
-    btn.setAttribute('aria-label', key + (on ? ' — done' : ' — not done'));
-
-    const box = document.createElement('span');
-    box.className = 'box';
-    box.innerHTML = '<svg viewBox="0 0 100 100" aria-hidden="true"><use href="#berry"/></svg>';
-
-    const lab = document.createElement('span');
-    lab.className = 'lab';
-    lab.textContent = DAY_LABELS[d.getDay()];
-
-    btn.append(box, lab);
-    btn.addEventListener('click', () => {
-      if(state.days.includes(key)) state.days = state.days.filter(x => x !== key);
-      else state.days.push(key);
-      save(); renderWeek();
-    });
-
-    weekRow.appendChild(btn);
+  /* preset stickers from the stickers/ folder.
+     Empty STICKER_FILES above if you only want your own uploads.      */
+  STICKER_FILES.forEach(function (file) {
+    addSwatch(STICKER_DIR + file, file.replace('.png', ''), true);
   });
 
-  const lucky = document.getElementById('lucky');
-  if(lucky) lucky.hidden = !state.days.includes(t);
+  /* ── UPLOADING YOUR OWN STICKERS ─────────────────────
+     Each file is read into an <img>, redrawn onto a canvas at no more
+     than 512px on its longest side, and stored as a PNG data URL.
 
-  curStreakEl.textContent  = currentStreak();
-  bestStreakEl.textContent = bestStreak();
-  totalDaysEl.textContent  = new Set(state.days).size;
+     Three reasons for the canvas round-trip rather than using the file
+     directly: it caps the memory a huge photo would eat, PNG output
+     preserves transparency (a JPEG would fill it with black), and a
+     data URL is same-origin so it can never taint the download canvas
+     the way a linked file can.                                        */
+  stickerUploadBtn.addEventListener('click', function () { stickerUpload.click(); });
+
+  stickerUpload.addEventListener('change', async function (e) {
+    const files = [].slice.call(e.target.files).filter(function (f) {
+      return f.type.indexOf('image/') === 0;
+    });
+    if (!files.length) return;
+
+    let added = 0;
+    for (const f of files) {
+      try {
+        const src = await fileToSticker(f);
+        addSwatch(src, f.name.replace(/\.[^.]+$/, ''), false);
+        added++;
+      } catch (err) {
+        toast('Could not read ' + f.name + '.');
+      }
+    }
+    if (added) {
+      toast('Added ' + added + ' sticker' + (added > 1 ? 's' : '') + ' to the tray — tap to place.');
+    }
+    stickerUpload.value = '';        // lets you re-pick the same file later
+  });
+
+  function fileToSticker(file) {
+    return new Promise(function (resolve, reject) {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = function () {
+        /* Uploads keep their full resolution — no downscaling.
+           To cap them again, set MAX to a pixel size and multiply
+           w/h by Math.min(1, MAX / Math.max(img.width, img.height)). */
+        const w = img.width;
+        const h = img.height;
+        const c = document.createElement('canvas');
+        c.width = w; c.height = h;
+        c.getContext('2d').drawImage(img, 0, 0, w, h);
+        URL.revokeObjectURL(url);
+        resolve(c.toDataURL('image/png'));   // PNG keeps transparency
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); reject(new Error('bad image')); };
+      img.src = url;
+    });
+  }
+
+  /* Drop a new sticker near the middle, jittered slightly so tapping
+     the same one twice doesn't hide one perfectly behind the other.   */
+  function addSticker(src) {
+    placed.push({
+      src: src,
+      x: 0.5 + (Math.random() - 0.5) * 0.25,
+      y: 0.5 + (Math.random() - 0.5) * 0.5
+    });
+    renderStickers();
+    toast('Sticker added — drag it where you want.');
+  }
+
+  /* Stickers are direct children of .strip, while photos live inside
+     .slot elements. render() only rewrites the slots, so stickers are
+     never disturbed by taking or filtering photos.                    */
+  function renderStickers() {
+    [].slice.call(stripEl.querySelectorAll('.placed')).forEach(function (n) { n.remove(); });
+    placed.forEach(function (s, i) {
+      const img = document.createElement('img');
+      img.className = 'placed';
+      img.src = s.src;
+      img.alt = '';
+      img.dataset.i = i;
+      img.style.left = (s.x * 100) + '%';
+      img.style.top  = (s.y * 100) + '%';
+      stripEl.appendChild(img);
+    });
+    /* the Remove button only exists while there's something to remove */
+    clearStickersBtn.hidden = placed.length === 0;
+  }
+
+  clearStickersBtn.addEventListener('click', function () {
+    if (!placed.length) return;
+    const n = placed.length;
+    placed = [];
+    renderStickers();
+    toast('Removed ' + n + ' sticker' + (n > 1 ? 's' : '') + '.');
+  });
+
+  /* DRAGGING — pointer events cover mouse, touch and stylus in one API.
+     setPointerCapture routes every move to this element even if the
+     cursor outruns it, which is what stops the sticker being dropped
+     the moment you move quickly.
+
+     getBoundingClientRect() gives the strip's live position and size on
+     screen; subtracting it converts a page coordinate into a fraction
+     of the strip. Clamping to 0-1 keeps stickers from being lost off
+     the edge.                                                          */
+  let drag = null;
+
+  stripEl.addEventListener('pointerdown', function (e) {
+    const el = e.target.closest('.placed');
+    if (!el) return;
+    e.preventDefault();
+    drag = { el: el, i: +el.dataset.i };
+    el.setPointerCapture(e.pointerId);
+    el.classList.add('grabbing');
+  });
+
+  stripEl.addEventListener('pointermove', function (e) {
+    if (!drag) return;
+    const r = stripEl.getBoundingClientRect();
+    const x = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+    const y = Math.min(1, Math.max(0, (e.clientY - r.top)  / r.height));
+    placed[drag.i].x = x;
+    placed[drag.i].y = y;
+    drag.el.style.left = (x * 100) + '%';
+    drag.el.style.top  = (y * 100) + '%';
+  });
+
+  function endDrag() {
+    if (!drag) return;
+    drag.el.classList.remove('grabbing');
+    drag = null;
+  }
+  stripEl.addEventListener('pointerup', endDrag);
+  stripEl.addEventListener('pointercancel', endDrag);
+
+  /* EVENT DELEGATION
+     The Retake buttons are destroyed and recreated on every render, so
+     listeners attached directly to them would die instantly. Instead one
+     listener sits on the parent strip, which never changes, and
+     .closest() works out whether the click landed on a Retake button.
+     One listener, works forever, no rebinding.                          */
+  stripEl.addEventListener('click', function (e) {
+    const btn = e.target.closest('.retake');
+    if (btn) { retake(+btn.dataset.i); return; }
+
+    /* per-slot upload: remember which slot asked, then open the picker */
+    const up = e.target.closest('.slot-upload');
+    if (up && !busy) {
+      uploadTarget = +up.dataset.up;
+      fileInput.click();
+    }
+  });
+
+  /* setButtons(): the only place button enabled/disabled state and the
+     main button's label are decided. Called after anything that changes
+     state, so the controls can never contradict what's actually going
+     on — e.g. you can't hit Download mid-countdown.                     */
+  function setButtons() {
+    const any = shots.some(Boolean);
+    downloadBtn.disabled = !any || busy;
+    clearBtn.disabled    = !any || busy;
+    startBtn.disabled    = busy;
+    uploadBtn.disabled   = busy;
+    startBtn.textContent = busy ? 'Smile…' : (stream ? 'Take 4 photos' : 'Start camera');
+  }
+
+  clearBtn.addEventListener('click', function () {
+    if (busy) return;
+    shots = [null, null, null, null];
+    placed = [];              // stickers go too
+    render();
+    renderStickers();
+    toast('Strip cleared.');
+  });
+
+  /* ── DOWNLOAD: FLATTEN THE STRIP INTO ONE PNG ────────
+     The on-screen strip is HTML, which can't be saved as an image
+     directly. So we rebuild it on a canvas and export that.
+
+     The four constants drive all the geometry, so changing PHOTO or GAP
+     rescales the whole layout without any other edits:
+       PHOTO 600 — each square photo
+       PAD    34 — white border around the strip
+       GAP    20 — space between photos
+       FOOT   96 — footer band for the logo and date
+     That gives 668 x 2590px:
+       width  = 600 + 34x2
+       height = 34 + (600 x 4) + (20 x 3) + 96
+
+     ctx.filter takes the same string as CSS filter, so the downloaded
+     image gets the identical look you see on screen. save()/restore()
+     wraps it so the filter doesn't bleed onto the footer text.
+
+     Empty slots are drawn as grey blocks rather than skipped, keeping
+     the strip a consistent size even if you only took two photos.
+
+     Export works by pointing a temporary <a download> at the canvas's
+     data URL and clicking it in code — no server involved, the file is
+     generated entirely in the browser.                                  */
+  downloadBtn.addEventListener('click', async function () {
+   /* Everything is wrapped so a failure says so out loud. Without this,
+      any error inside an async handler vanishes into the console and the
+      button just appears to do nothing.                                */
+   try {
+    /* ── GEOMETRY MEASURED FROM THE LIVE PAGE ────────────
+       The download used to be laid out with its own constants — PAD 34,
+       GAP 20 and so on. Those were hand-picked to look like the CSS
+       (padding 18, gap 12) but weren't proportionally identical, so the
+       photos came out 89.8% of the strip's width instead of 88.0%. Tiny,
+       but enough to make stickers look smaller than in the preview.
+
+       Now nothing is hard-coded. We measure the real strip and every
+       slot with getBoundingClientRect(), then multiply by one SCALE
+       factor. The download is a scaled-up copy of exactly what you're
+       looking at — and it stays that way even if you edit the CSS.    */
+    const rect = stripEl.getBoundingClientRect();
+    if (!rect.width) throw new Error('the strip is not visible');
+
+    const TARGET_W = 1080;                     // output width in pixels
+    const SCALE = TARGET_W / rect.width;
+    const W = Math.round(rect.width  * SCALE);
+    const H = Math.round(rect.height * SCALE);
+
+    const c = document.createElement('canvas');
+    c.width = W; c.height = H;
+    const ctx = c.getContext('2d');
+
+    /* positions are measured relative to the strip's top-left corner */
+    const rel = function (el) {
+      const r = el.getBoundingClientRect();
+      return {
+        x: (r.left - rect.left) * SCALE,
+        y: (r.top  - rect.top)  * SCALE,
+        w: r.width  * SCALE,
+        h: r.height * SCALE
+      };
+    };
+    /* The hand-drawn look uses an eight-value border-radius, where each
+       corner is a different lopsided ellipse. Canvas can't draw that,
+       and getComputedStyle returns something like "255px 15px" — which
+       parseFloat reads as 255, ballooning the exported corners into
+       pill shapes. So the value is capped at a small fraction of the
+       box, giving gently rounded corners in the saved image.        */
+    const radiusOf = function (el, w, h) {
+      const raw = parseFloat(getComputedStyle(el).borderTopLeftRadius) * SCALE || 0;
+      return Math.min(raw, Math.min(w, h) * 0.06);
+    };
+
+    /* strip background, with the same rounded corners as on screen */
+    const stripCss = getComputedStyle(stripEl);
+    ctx.fillStyle = stripCss.backgroundColor || '#FFFFFF';
+    roundRect(ctx, 0, 0, W, H, radiusOf(stripEl, W, H));
+    ctx.fill();
+
+    /* photos, drawn wherever their slots actually sit */
+    for (let i = 0; i < 4; i++) {
+      const p = rel(slots[i]);
+      ctx.save();
+      roundRect(ctx, p.x, p.y, p.w, p.h, radiusOf(slots[i], p.w, p.h));
+      ctx.clip();
+      if (shots[i]) {
+        const img = await loadImage(shots[i]);
+        ctx.filter = FILTERS[filter];
+        ctx.drawImage(img, p.x, p.y, p.w, p.h);
+      } else {
+        ctx.fillStyle = '#F0EDE7';
+        ctx.fillRect(p.x, p.y, p.w, p.h);
+      }
+      ctx.restore();
+    }
+
+    /* footer — same text, font, colour and position as the preview */
+    const footEl = document.getElementById('stripFoot');
+    if (footEl && footEl.textContent.trim()) {
+      if (document.fonts && document.fonts.ready) await document.fonts.ready;
+      const f  = rel(footEl);
+      const fc = getComputedStyle(footEl);
+      ctx.fillStyle    = fc.color;
+      ctx.textAlign    = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.font = fc.fontStyle + ' ' + fc.fontWeight + ' ' +
+                 (parseFloat(fc.fontSize) * SCALE) + 'px ' + fc.fontFamily;
+      ctx.fillText(footEl.textContent.trim(), W / 2, f.y + f.h / 2);
+    }
+
+    /* stickers last, so they sit on top exactly as they do on screen.
+       Measuring the placed elements rather than recomputing from the
+       fractions means position, size and aspect ratio all match by
+       construction — there's no second calculation to get wrong.      */
+    const stickerEls = stripEl.querySelectorAll('.placed');
+    for (const el of stickerEls) {
+      const p   = rel(el);
+      const img = await loadImage(el.src);
+      ctx.save();
+      ctx.filter = 'drop-shadow(0 ' + (2 * SCALE).toFixed(1) + 'px ' +
+                   (5 * SCALE).toFixed(1) + 'px rgba(0,0,0,.25))';
+      ctx.drawImage(img, p.x, p.y, p.w, p.h);
+      ctx.restore();
+    }
+
+    /* ── SAVING IT ───────────────────────────────────────
+       The strip is a tall PNG, easily several megabytes. The old code
+       used toDataURL(), which encodes the whole thing as one enormous
+       base64 string and hands it to an <a download>. Desktop copes;
+       phones often don't — Safari in particular caps how big a URL can
+       be and simply ignores oversized ones, which is why nothing
+       happened when you tapped Download.
+
+       toBlob() produces real binary data instead, roughly a third the
+       size and far friendlier to memory. From there we try three routes
+       in order of how well each works on the device at hand.          */
+    const name = 'photobooth-' + Date.now() + '.png';
+    const blob = await new Promise(function (res) { c.toBlob(res, 'image/png'); });
+    if (!blob) throw new Error('the image could not be created');
+
+    /* 1. PHONES — the native share sheet, which includes Save to Photos.
+          This is the only route on iOS that reliably lands the strip in
+          the camera roll rather than a Files folder.                   */
+    /* Desktop Chrome and Edge support navigator.share too, but there the
+       share sheet is the wrong answer — clicking Download should put a
+       file in your Downloads folder, not open a dialog. '(pointer:
+       coarse)' is true for fingers and false for a mouse, so this keeps
+       the share sheet on phones and tablets only.                      */
+    const isTouch = window.matchMedia('(pointer: coarse)').matches;
+
+    if (isTouch && navigator.canShare) {
+      const file = new File([blob], name, { type: 'image/png' });
+      if (navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file], title: 'My photo strip' });
+          toast('Saved.');
+          return;
+        } catch (err) {
+          if (err.name === 'AbortError') return;   // user tapped Cancel
+          /* anything else: fall through to the download route */
+        }
+      }
+    }
+
+    /* 2. DESKTOP AND ANDROID — an object URL is just a short pointer to
+          the blob, so there's no size limit to run into.               */
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+
+    if (typeof a.download === 'undefined') {
+      /* 3. OLDER BROWSERS with no download attribute: show the image and
+            let the user save it by hand.                               */
+      window.open(url, '_blank');
+      toast('Press and hold the image to save it.', 5000);
+      return;
+    }
+
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);      // Firefox needs it in the document
+    a.click();
+    a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 10000);
+    toast('Strip downloaded.');
+
+   } catch (err) {
+     toast('Could not save the strip — ' + (err.message || err.name) + '.', 5000);
+   }
+  });
+
+  /* roundRect(): traces a rounded rectangle path. Canvas has a built-in
+     ctx.roundRect() now, but it's recent enough that older phones miss
+     it — this works everywhere.                                       */
+  function roundRect(ctx, x, y, w, h, r) {
+    r = Math.min(r || 0, w / 2, h / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y,     x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x,     y + h, r);
+    ctx.arcTo(x,     y + h, x,     y,     r);
+    ctx.arcTo(x,     y,     x + w, y,     r);
+    ctx.closePath();
+  }
+
+  function loadImage(src) {
+    return new Promise(function (res, rej) {
+      const i = new Image();
+      i.onload = function () { res(i); };
+      i.onerror = rej;
+      i.src = src;
+    });
+  }
+
+  /* ── TIDY UP ─────────────────────────────────────────
+     Stopping every track releases the webcam and turns off the little
+     green camera light. Without this the camera can stay claimed after
+     you navigate away, which looks alarming and blocks other apps.
+     'pagehide' is used rather than 'unload' because it also fires when
+     a mobile browser backgrounds the tab.                               */
+  window.addEventListener('pagehide', function () {
+    if (stream) stream.getTracks().forEach(function (t) { t.stop(); });
+  });
+
+  /* First paint: draws the four empty numbered slots and sets the
+     initial disabled state of the buttons.                              */
+  render();
 }
 
-/* ══ FOCUS TIMER ════════════════════════════════════════ */
-const clock     = document.getElementById('clock');
-const startBtn  = document.getElementById('startBtn');
-const resetBtn  = document.getElementById('resetTimer');
-const timerNote = document.getElementById('timerNote');
-const chips     = [...document.querySelectorAll('.chip')];
-const plusBtn   = document.getElementById('plusBtn');
-const minusBtn  = document.getElementById('minusBtn');
+initPhotoBooth();
 
-const STEP_MIN = 5;      // how much + and − move the clock
-const MIN_SEC  = 0;      // reset takes it all the way to zero
-const MAX_SEC  = 4 * 60 * 60;
 
-let mins = state.timerMins;
-let left = mins * 60;
-let endsAt = null;
-let tickId = null;
+/* ══ 5 MIN TIMER (timer.html only) ═══════════════════
+   Same pattern as the photo booth: everything lives inside one
+   function, and the guard on the first line means this file stays
+   safe to load on every page of the site.                        */
+function initTimer() {
+  const dial = document.getElementById('dial');
+  if (!dial) return;                       // not the timer page
 
-/* time actually spent focusing in this run, so the half-hour
-   marker survives pauses and nudges */
-const MARK_MS = 30 * 60 * 1000;
-let elapsedMs = 0;       // banked from finished segments
-let segStart  = null;    // when the current running segment began
-let marksHit  = 0;
+  const timeEl   = document.getElementById('time');
+  const msgEl    = document.getElementById('message');
+  const ring     = document.getElementById('ringFill');
+  const startBtn = document.getElementById('startBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const minusBtn = document.getElementById('minusBtn');
+  const plusBtn  = document.getElementById('plusBtn');
+  const adjLabel = document.getElementById('adjLabel');
+  const page     = document.querySelector('.timer-page');
+  const toastEl  = document.getElementById('toast');
 
-function focusedMs(){
-  return elapsedMs + (segStart ? Date.now() - segStart : 0);
-}
-function resetRun(){
-  elapsedMs = 0; segStart = null; marksHit = 0;
-}
+  /* ── STATE ─────────────────────────────────────────
+     total    : the chosen length in seconds
+     endAt    : the clock time the timer should finish at
+     left     : seconds remaining, kept for pausing
+     running  : is the countdown currently ticking            */
+  let total   = 5 * 60;
+  let left    = total;
+  let endAt   = 0;
+  let running = false;
+  let tickId  = null;
 
-const fmt = s => {
-  const h = Math.floor(s / 3600);
-  const m = Math.floor(s % 3600 / 60);
-  const sec = s % 60;
-  return h
-    ? `${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`
-    : `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
-};
+  const MIN = 60, MAX = 60 * 60, STEP = 60;
 
-function paint(){
-  clock.textContent = fmt(Math.max(0, left));
-  clock.classList.toggle('running', tickId !== null);
-  minusBtn.disabled = left <= MIN_SEC;
-  plusBtn.disabled  = left >= MAX_SEC;
-  startBtn.disabled = left <= 0 && tickId === null;
-}
+  const toast = function (msg, ms) {
+    if (!toastEl) return;
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(toast._t);
+    toast._t = setTimeout(function () { toastEl.classList.remove('show'); }, ms || 2600);
+  };
 
-/* + / − nudge the clock by 5 minutes, running or not */
-function nudge(deltaMin){
-  const next = Math.min(MAX_SEC, Math.max(MIN_SEC, left + deltaMin * 60));
-  if(next === left) return;
-  left = next;
-  clock.classList.remove('done');
-  if(tickId !== null) endsAt = Date.now() + left * 1000;   // keep a running timer honest
-  else { mins = left / 60; state.timerMins = mins; save(); }
-  chips.forEach(c => c.classList.toggle('active', Number(c.dataset.mins) * 60 === left && tickId === null));
-  paint();
-}
+  /* ── THE RING ──────────────────────────────────────
+     An SVG circle can be drawn as a dashed line. If one dash is
+     exactly as long as the circle, the "dash" is the whole ring.
+     Shifting where that dash starts (stroke-dashoffset) then hides
+     part of it — which is how the arc appears to empty out.
+     The CSS rotates the SVG -90deg so it starts at the top.      */
+  const R = 108;
+  const CIRC = 2 * Math.PI * R;
+  ring.style.strokeDasharray = CIRC;
 
-plusBtn.addEventListener('click',  () => nudge(STEP_MIN));
-minusBtn.addEventListener('click', () => nudge(-STEP_MIN));
+  function paintRing() {
+    const fraction = total ? left / total : 0;
+    ring.style.strokeDashoffset = CIRC * (1 - fraction);
+  }
 
-function setMins(m){
-  mins = m;
-  state.timerMins = m;
-  save();
-  chips.forEach(c => c.classList.toggle('active', Number(c.dataset.mins) === m));
-  if(tickId === null){
-    left = m * 60;
-    clock.classList.remove('done');
-    if(timerNote.textContent === 'add some time first.') timerNote.textContent = 'ready when you are.';
+  /* ── MESSAGES ──────────────────────────────────────
+     Chosen by how far through you are, not by a fixed time, so they
+     still make sense whether the timer is 1 minute or 25.        */
+  function messageFor(fractionLeft) {
+    if (!running && left === total) return 'Ready when you are.';
+    if (left === 0)          return 'Done. That was it.';
+    if (!running)            return 'Paused — pick it back up.';
+    if (fractionLeft > 0.8)  return 'Just start. Anything counts.';
+    if (fractionLeft > 0.5)  return 'You are already going.';
+    if (fractionLeft > 0.25) return 'Past halfway.';
+    if (fractionLeft > 0.08) return 'Nearly there.';
+    return 'Finish this bit.';
+  }
+
+  function fmt(s) {
+    const m = Math.floor(s / 60);
+    const r = s % 60;
+    return String(m).padStart(2, '0') + ':' + String(r).padStart(2, '0');
+  }
+
+  function paint() {
+    timeEl.textContent = fmt(left);
+    msgEl.textContent  = messageFor(total ? left / total : 0);
+    adjLabel.textContent = (total / 60) + (total === 60 ? ' minute' : ' minutes');
+    paintRing();
+
+    dial.classList.toggle('running', running);
+    dial.classList.toggle('done', left === 0);
+    page.classList.toggle('running', running);
+
+    startBtn.textContent = running ? 'Pause' : (left === total ? 'Start' : 'Resume');
+    resetBtn.disabled = running ? false : (left === total);
+    /* only limited by the range now, not by whether the clock is
+       running — adding time mid-session is the point */
+    minusBtn.disabled = total <= MIN;
+    plusBtn.disabled  = total >= MAX;
+  }
+
+  /* ── THE COUNTDOWN ─────────────────────────────────
+     The remaining time is worked out from the clock, not by counting
+     how many times this function has run. setInterval is never exact,
+     and browsers slow timers right down in background tabs, so
+     counting ticks would drift by minutes over a long session.
+     Comparing against a fixed end time is always accurate.        */
+  function tick() {
+    left = Math.max(0, Math.round((endAt - Date.now()) / 1000));
+    paint();
+    if (left === 0) finish();
+  }
+
+  function start() {
+    if (left === 0) left = total;          // finished, so start over
+    endAt = Date.now() + left * 1000;
+    running = true;
+    clearInterval(tickId);
+    tickId = setInterval(tick, 250);       // 4x a second keeps it smooth
     paint();
   }
-}
 
-function stop(){
-  if(segStart){ elapsedMs += Date.now() - segStart; segStart = null; }  // bank it
-  clearInterval(tickId);
-  tickId = null; endsAt = null;
-  startBtn.textContent = 'start';
+  function pause() {
+    running = false;
+    clearInterval(tickId);
+    left = Math.max(0, Math.round((endAt - Date.now()) / 1000));
+    paint();
+  }
+
+  function reset() {
+    running = false;
+    clearInterval(tickId);
+    left = total;
+    paint();
+  }
+
+  function finish() {
+    running = false;
+    clearInterval(tickId);
+    chime();
+    paint();
+    toast('Time is up. Well done.', 4000);
+  }
+
+  /* ── THE CHIME ─────────────────────────────────────
+     Made with the Web Audio API rather than a sound file, so there is
+     nothing extra to download and it cannot fail to load. Two soft
+     notes, the second slightly higher, each fading out.
+     The AudioContext is created on the click that starts the timer —
+     browsers block audio that was not triggered by a user action.  */
+  let audio = null;
+  function chime() {
+    try {
+      if (!audio) audio = new (window.AudioContext || window.webkitAudioContext)();
+      [0, 0.28].forEach(function (delay, i) {
+        const osc  = audio.createOscillator();
+        const gain = audio.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = i === 0 ? 660 : 880;
+        const t = audio.currentTime + delay;
+        gain.gain.setValueAtTime(0.0001, t);
+        gain.gain.exponentialRampToValueAtTime(0.25, t + 0.03);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.7);
+        osc.connect(gain); gain.connect(audio.destination);
+        osc.start(t); osc.stop(t + 0.75);
+      });
+    } catch (err) { /* no audio available — the visuals still work */ }
+  }
+
+  /* ── CONTROLS ──────────────────────────────────────── */
+  startBtn.addEventListener('click', function () {
+    /* creating the AudioContext here means it is unlocked by a real
+       click, so the chime is allowed to play later */
+    if (!audio) {
+      try { audio = new (window.AudioContext || window.webkitAudioContext)(); }
+      catch (err) { audio = null; }
+    }
+    running ? pause() : start();
+  });
+
+  resetBtn.addEventListener('click', reset);
+
+  /* Changing the length used to be blocked while the clock ran. Now it
+     works either way:
+       stopped — set the length and reset the countdown to it
+       running — stretch or shrink the time REMAINING, and push the
+                 finish time out to match, so the current session just
+                 gets longer instead of restarting.                   */
+  function setTotal(mins) {
+    const next = Math.min(MAX, Math.max(MIN, Math.round(mins * 60)));
+
+    if (running) {
+      const delta = next - total;
+      total = next;
+      left  = Math.max(1, left + delta);
+      endAt = Date.now() + left * 1000;     // move the finish line
+    } else {
+      total = next;
+      left  = total;
+    }
+
+    document.querySelectorAll('.timer-presets .chip').forEach(function (c) {
+      c.setAttribute('aria-pressed', +c.dataset.mins === total / 60);
+    });
+    paint();
+  }
+
+  const bump = function (dir) { setTotal((total + dir * STEP) / 60); };
+
+  /* HOLD TO REPEAT
+     A tester wanted to add twenty minutes without twenty taps. Holding
+     the button waits 450ms — long enough that a normal tap isn't
+     mistaken for a hold — then fires every 120ms until released.
+
+     Pointer events cover mouse and touch together. The 'leave' and
+     'cancel' listeners matter: without them, sliding a finger off the
+     button would leave the timer stuck adding minutes forever.      */
+  function holdToRepeat(btn, dir) {
+    let startT = null, repeatT = null;
+
+    const stop = function () {
+      clearTimeout(startT); clearInterval(repeatT);
+      startT = repeatT = null;
+    };
+
+    btn.addEventListener('pointerdown', function (e) {
+      if (btn.disabled) return;
+      e.preventDefault();
+      bump(dir);                                  // the first step is instant
+      startT = setTimeout(function () {
+        repeatT = setInterval(function () {
+          if (btn.disabled) { stop(); return; }
+          bump(dir);
+        }, 120);
+      }, 450);
+    });
+
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach(function (ev) {
+      btn.addEventListener(ev, stop);
+    });
+    window.addEventListener('blur', stop);        // tab switched mid-hold
+  }
+
+  holdToRepeat(minusBtn, -1);
+  holdToRepeat(plusBtn,  +1);
+
+  document.querySelectorAll('.timer-presets .chip').forEach(function (chip) {
+    chip.addEventListener('click', function () { setTotal(+chip.dataset.mins); });
+  });
+
+  /* spacebar starts and pauses, since this page has one main job */
+  document.addEventListener('keydown', function (e) {
+    if (e.code === 'Space' && e.target === document.body) {
+      e.preventDefault();
+      startBtn.click();
+    }
+  });
+
   paint();
 }
 
-function tick(){
-  left = Math.max(0, Math.round((endsAt - Date.now()) / 1000));
-  paint();
+initTimer();
 
-  /* half-hour marker — skipped if the finish bell is about to ring anyway */
-  const due = Math.floor(focusedMs() / MARK_MS);
-  if(due > marksHit && left > 3){
-    marksHit = due;
-    mark();
-    const half = due * 30;                    // 30, 60, 90, 120 …
-    const h = Math.floor(half / 60), m = half % 60;
-    const label = h === 0 ? m + ' min'
-      : (h === 1 && m === 0) ? '1 hour'
-      : h + (m ? '\u00bd' : '') + ' hours';
-    timerNote.textContent = label + ' of focus — keep going.';
-    say(label + ' in!');
-    if(soundBtn){
-      soundBtn.classList.add('ring');
-      setTimeout(() => soundBtn.classList.remove('ring'), 700);
+
+/* ══ TASK MANAGER (tasks.html only) ══════════════════
+   Same pattern again: one function, guarded on the first line, so
+   this file stays safe to load on every page.                    */
+function initTasks() {
+  const listEl = document.getElementById('taskList');
+  if (!listEl) return;                     // not the task manager page
+
+  const form       = document.getElementById('addForm');
+  const titleInput = document.getElementById('newTitle');
+  const dueInput   = document.getElementById('newDue');
+  const emptyNote  = document.getElementById('emptyNote');
+  const overall    = document.getElementById('overall');
+  const overallBar = document.getElementById('overallBar');
+  const overallTxt = document.getElementById('overallText');
+  const clearDone  = document.getElementById('clearDoneBtn');
+  const toastEl    = document.getElementById('toast');
+
+  const KEY = 'helpful.tasks.v1';
+
+  /* One place for the length limits, used by the add form (via the
+     maxlength attribute set below) and by the rename prompts. Having
+     the number written down twice is what let renaming exceed it.  */
+  const TITLE_MAX = 80;
+  const STEP_MAX  = 90;
+
+  /* ── STATE ─────────────────────────────────────────
+     One array holds everything. Each assessment looks like:
+       { id, title, due, steps: [ { id, text, done } ] }
+     Same idea as the photo booth: the screen is only ever a drawing
+     of this array, so the two can't disagree.                    */
+  let tasks = load();
+
+  const toast = function (msg, ms) {
+    if (!toastEl) return;
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(toast._t);
+    toast._t = setTimeout(function () { toastEl.classList.remove('show'); }, ms || 2600);
+  };
+
+  const uid = function () { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); };
+
+  /* ── SAVING ────────────────────────────────────────
+     localStorage keeps the data in the browser after the tab closes.
+     It only stores text, so the array is converted to JSON on the way
+     out and parsed back on the way in. Both are wrapped in try/catch
+     because storage can be full or blocked in private browsing, and
+     a crash here would take the whole page down.                 */
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(tasks)); }
+    catch (err) { toast('Could not save — your browser is blocking storage.', 4000); }
+  }
+
+  function load() {
+    try {
+      const raw = localStorage.getItem(KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (err) { return []; }
+  }
+
+  /* ── DUE DATES ─────────────────────────────────────
+     Both dates are flattened to midnight before comparing, so "due
+     today" stays today all day instead of flipping to "overdue" the
+     moment the clock passes the time you created it.             */
+  function dueInfo(due, complete) {
+    if (!due) return null;
+    const d = new Date(due + 'T00:00:00');
+    if (isNaN(d)) return null;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const days = Math.round((d - today) / 86400000);
+
+    /* "in 3 days" is easy to read but useless for planning — you still
+       have to work out which day that is. Both are shown now: the
+       countdown for urgency, the real date for planning.            */
+    const stamp = d.toLocaleDateString(undefined, {
+      weekday: 'short', day: 'numeric', month: 'short'
+    });
+
+    if (complete)   return { text: 'Finished', date: stamp, cls: 'done' };
+    if (days < 0)   return { text: Math.abs(days) + (Math.abs(days) === 1 ? ' day overdue' : ' days overdue'), date: stamp, cls: 'overdue' };
+    if (days === 0) return { text: 'Due today', date: stamp, cls: 'soon' };
+    if (days === 1) return { text: 'Due tomorrow', date: stamp, cls: 'soon' };
+    if (days <= 3)  return { text: 'Due in ' + days + ' days', date: stamp, cls: 'soon' };
+    return { text: 'Due in ' + days + ' days', date: stamp, cls: '' };
+  }
+
+  const esc = function (s) {
+    return String(s).replace(/[&<>"']/g, function (ch) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch];
+    });
+  };
+
+  /* ── PICKING A DATE ────────────────────────────────
+     A real <input type="date"> gives phones a native date wheel and
+     desktops a calendar, which beats typing. It's created, clicked and
+     thrown away each time rather than living in the page, so it can't
+     be tabbed into or styled by accident.
+
+     showPicker() is what actually opens the calendar without the user
+     having to hit the tiny icon, but Safari has been inconsistent
+     about supporting it. If it isn't there, or throws, we fall back to
+     a plain text prompt and validate the format ourselves.        */
+  function openDatePicker(current, done) {
+    const input = document.createElement('input');
+    input.type = 'date';
+
+    /* if the browser doesn't understand type="date" it silently becomes
+       a text box — that's the signal to skip straight to the fallback */
+    if (input.type !== 'date') return askForDateText(current, done);
+
+    input.value = current || '';
+    input.style.position = 'fixed';
+    input.style.opacity = '0';
+    input.style.pointerEvents = 'none';
+    document.body.appendChild(input);
+
+    let finished = false;
+    const finish = function (val) {
+      if (finished) return;
+      finished = true;
+      input.remove();
+      done(val);
+    };
+
+    input.addEventListener('change', function () { finish(input.value); });
+    input.addEventListener('blur',   function () { setTimeout(function () { finish(input.value); }, 150); });
+
+    try {
+      if (typeof input.showPicker === 'function') { input.showPicker(); }
+      else { input.focus(); input.click(); }
+    } catch (err) {
+      input.remove();
+      askForDateText(current, done);
     }
   }
 
-  if(left === 0){
-    stop();
-    clock.classList.add('done');
-    timerNote.textContent = 'done — nice one. tick today off →';
-    say('yatta! おつかれ');
-    chime();
-    resetRun();
-    markToday();
-  }
-}
-
-startBtn.addEventListener('click', () => {
-  if(tickId !== null){                       // pause
-    stop();
-    timerNote.textContent = 'paused.';
-    say('taking a breather?');
-    return;
-  }
-  if(left <= 0){                             // nothing on the clock yet
-    timerNote.textContent = 'add some time first.';
-    return;
-  }
-  clock.classList.remove('done');
-  endsAt = Date.now() + left * 1000;
-  segStart = Date.now();
-  tickId = setInterval(tick, 250);
-  startBtn.textContent = 'pause';
-  timerNote.textContent = 'go. phone face down.';
-  say('focus mode — go!');
-  paint();
-});
-
-resetBtn.addEventListener('click', () => {
-  stop();
-  resetRun();
-  left = 0;                                   // back to 00:00
-  clock.classList.remove('done');
-  chips.forEach(c => c.classList.remove('active'));
-  timerNote.textContent = 'pick a length, or + to add time.';
-  paint();
-});
-
-chips.forEach(c => c.addEventListener('click', () => setMins(Number(c.dataset.mins))));
-
-/* ══ SOUND ══════════════════════════════════════════════
-   One shared AudioContext, unlocked on the first tap —
-   browsers refuse to make noise before you interact, which
-   is why a chime created cold can come out silent. Every
-   note is synthesised, so there is no audio file to load. */
-let actx = null;
-
-function audio(){
-  try{
-    const Ctx = window.AudioContext || window.webkitAudioContext;
-    if(!Ctx) return null;
-    if(!actx) actx = new Ctx();
-    if(actx.state === 'suspended') actx.resume();   // Safari parks it otherwise
-    return actx;
-  }catch(e){ return null; }
-}
-
-/* unlock on the very first interaction, whatever it is */
-['pointerdown','keydown','touchstart'].forEach(ev =>
-  window.addEventListener(ev, () => audio(), { once:true, passive:true }));
-
-/* one bell note: a sine body with a bright partial, struck and left to ring */
-function bell(ctx, freq, at, dur, gain){
-  const t = ctx.currentTime + at;
-  const out = ctx.createGain();
-  out.gain.setValueAtTime(0.0001, t);
-  out.gain.exponentialRampToValueAtTime(gain, t + 0.012);   // hard strike
-  out.gain.exponentialRampToValueAtTime(0.0001, t + dur);   // long decay
-  out.connect(ctx.destination);
-
-  [[1, 1], [2.01, 0.32], [3.02, 0.12]].forEach(([mult, amp]) => {
-    const o = ctx.createOscillator();
-    const g = ctx.createGain();
-    o.type = mult === 1 ? 'sine' : 'triangle';
-    o.frequency.value = freq * mult;
-    g.gain.value = amp;
-    o.connect(g).connect(out);
-    o.start(t);
-    o.stop(t + dur + 0.05);
-  });
-}
-
-/* short tick for小 things — ticking a task, a UI ping */
-function beep(){
-  if(!state.sound) return;
-  const ctx = audio(); if(!ctx) return;
-  bell(ctx, 880, 0, 0.35, 0.16);
-  bell(ctx, 1318.5, 0.09, 0.4, 0.12);
-}
-
-/* every half hour of focus: two quick wooden blips, about a
-   quarter of a second all in. Short and dry on purpose — you
-   should never mistake it for the finish bell.               */
-function mark(){
-  if(!state.sound) return;
-  const ctx = audio(); if(!ctx) return;
-  [[784, 0], [1046.5, 0.11]].forEach(([f, at]) => {
-    const t = ctx.currentTime + at;
-    const o = ctx.createOscillator(), g = ctx.createGain();
-    o.type = 'triangle';
-    o.frequency.setValueAtTime(f, t);
-    g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(0.14, t + 0.008);   // sharp attack
-    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.13);  // clipped, no ring
-    o.connect(g).connect(ctx.destination);
-    o.start(t); o.stop(t + 0.16);
-  });
-}
-
-/* the timer's finish: a proper little four-note chime that
-   rings out, plus a soft echo of the last note              */
-function chime(){
-  if(!state.sound) return;
-  const ctx = audio(); if(!ctx) return;
-  // C6 · E6 · G6 · C7 — a bright major arpeggio
-  const notes = [1046.5, 1318.5, 1568, 2093];
-  notes.forEach((f, i) => bell(ctx, f, i * 0.16, 1.5 - i * 0.15, 0.2 - i * 0.02));
-  bell(ctx, 2093, 0.86, 2.2, 0.1);          // the ring-out
-  bell(ctx, 523.25, 0.9, 2.4, 0.07);        // a low sweetener underneath
-
-  if(soundBtn){                              // the toggle rings along with it
-    soundBtn.classList.add('ring');
-    setTimeout(() => soundBtn.classList.remove('ring'), 1600);
-  }
-}
-
-/* the toggle */
-const soundBtn = document.getElementById('soundBtn');
-function paintSound(){
-  if(!soundBtn) return;
-  soundBtn.classList.toggle('off', !state.sound);
-  soundBtn.setAttribute('aria-pressed', String(!!state.sound));
-  soundBtn.querySelector('.slab').textContent = state.sound ? 'chime on' : 'chime off';
-}
-if(soundBtn){
-  soundBtn.addEventListener('click', () => {
-    state.sound = !state.sound;
-    save(); paintSound();
-    if(state.sound) mark();                  // hear what you just turned on
-  });
-}
-
-/* keep the timer honest if the tab was backgrounded */
-document.addEventListener('visibilitychange', () => {
-  if(!document.hidden && tickId !== null) tick();
-});
-
-/* ══ MOBILE: shrink the task list until it fits ═════════
-   Rather than scrolling, the panel steps down through
-   five density levels — fewer tasks stay roomy, more
-   tasks get compact. Only past the tightest level does
-   the list start scrolling.                            */
-const taskPanel = document.querySelector('.task-panel');
-const DENSITY = ['', 'd2', 'd3', 'd4', 'd5'];
-
-function fitTasks(){
-  for(const level of DENSITY){
-    taskPanel.classList.remove(...DENSITY.filter(Boolean));
-    if(level) taskPanel.classList.add(level);
-    // let the browser settle the new sizes before measuring
-    if(groupList.scrollHeight <= groupList.clientHeight + 1) return;
-  }
-  // still too long at the tightest level — the list scrolls from here
-}
-
-let fitPending = null;
-function queueFit(){
-  cancelAnimationFrame(fitPending);
-  fitPending = requestAnimationFrame(fitTasks);
-}
-window.addEventListener('resize', queueFit);
-window.addEventListener('orientationchange', queueFit);
-
-/* ══ SKINS ══════════════════════════════════════════════
-   Same kit, different ink. The skin only swaps CSS custom
-   properties on <html>, so every shape, shadow, motif and
-   animation carries over untouched.                      */
-const skinBtns = [...document.querySelectorAll('.skin')];
-
-function applySkin(){
-  document.documentElement.dataset.skin = state.skin;
-  skinBtns.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.skin === state.skin)));
-  const meta = document.querySelector('meta[name="theme-color"]');
-  if(meta) meta.setAttribute('content', state.skin === 'mono' ? '#ffffff' : '#fff7ee');
-}
-
-const loader = document.getElementById('loader');
-const loaderText = document.getElementById('loaderText');
-let swapping = false;
-
-/* the curtain: down, swap behind it, up again */
-function switchSkin(next){
-  if(swapping || state.skin === next) return;
-  const calmNow = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-  if(calmNow || !loader){                    // no theatre if motion is off
-    state.skin = next; save(); applySkin();
-    if(typeof mark === 'function') mark();
-    return;
+  function askForDateText(current, done) {
+    const val = prompt('Due date (YYYY-MM-DD), or leave blank to clear:', current || '');
+    if (val === null) return;                        // cancelled
+    const clean = val.trim();
+    if (clean === '') return done('');               // cleared
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(clean) || isNaN(new Date(clean + 'T00:00:00'))) {
+      toast('That date did not look right — use YYYY-MM-DD.', 4000);
+      return;
+    }
+    done(clean);
   }
 
-  swapping = true;
-  loaderText.textContent = next === 'mono' ? 'switching to mono…' : 'switching to candy…';
-  loader.classList.remove('out');
-  loader.classList.add('on');
-  if(typeof mark === 'function') mark();
+  /* ── DRAWING ───────────────────────────────────────── */
+  function render() {
+    listEl.innerHTML = '';
 
-  setTimeout(() => {                          // swap while it is covered
-    state.skin = next;
-    save(); applySkin();
-    loaderText.textContent = next === 'mono' ? 'mono' : 'candy';
-  }, 420);
+    tasks.forEach(function (t) {
+      const total    = t.steps.length;
+      const done     = t.steps.filter(function (s) { return s.done; }).length;
+      const complete = total > 0 && done === total;
+      const pct      = total ? Math.round(done / total * 100) : 0;
+      const info     = dueInfo(t.due, complete);
 
-  setTimeout(() => {                          // lift the curtain
-    loader.classList.remove('on');
-    loader.classList.add('out');
-  }, 900);
+      const card = document.createElement('div');
+      card.className = 'task-card' + (complete ? ' complete' : '');
+      card.dataset.id = t.id;
 
-  setTimeout(() => {
-    loader.classList.remove('out');
-    swapping = false;
-  }, 1320);
-}
+      card.innerHTML =
+        '<div class="card-head">' +
+          '<div class="card-title" data-act="rename" title="Click to rename">' + esc(t.title) + '</div>' +
+          '<button class="icon-btn" data-act="delete" title="Delete task">✕</button>' +
+        '</div>' +
+        /* the whole chip is a button now, so a due date can be changed
+           after the task was created — previously it was set once and
+           stuck. No date yet? Offer to add one.                     */
+        (info
+          ? '<button class="due ' + info.cls + '" data-act="due">' + esc(info.text) +
+            ' <span class="due-date">' + esc(info.date) + '</span></button>'
+          : '<button class="due due-empty" data-act="due">+ Add a due date</button>') +
+        '<div class="bar"><div class="bar-fill" style="width:' + pct + '%"></div></div>' +
+        '<p class="count">' + (total ? done + ' of ' + total + ' steps done' : 'No steps yet — add the first one below') + '</p>' +
+        '<ul class="steps">' +
+          t.steps.map(function (s) {
+            return '<li class="step' + (s.done ? ' done' : '') + '" data-sid="' + s.id + '" draggable="true">' +
+                     '<span class="grip" title="Drag to reorder">⠿</span>' +
+                     '<input type="checkbox" data-act="toggle"' + (s.done ? ' checked' : '') + '>' +
+                     '<span class="step-text" data-act="edit-step">' + esc(s.text) + '</span>' +
+                     '<button class="icon-btn" data-act="del-step" title="Remove step">✕</button>' +
+                   '</li>';
+          }).join('') +
+        '</ul>' +
+        '<form class="add-step" data-act="add-step">' +
+          '<input class="field" type="text" maxlength="90" placeholder="Add a step — e.g. find 3 sources" required>' +
+          '<button class="bth bth-soft" type="submit">Add</button>' +
+        '</form>';
 
-skinBtns.forEach(b => b.addEventListener('click', () => switchSkin(b.dataset.skin)));
-
-/* ══ TOUCHABLE MOTIFS ═══════════════════════════════════
-   Beri-chan tumbles when tapped, the floating cones and
-   berries lean toward the pointer, and freshly rendered
-   group cards pop in as they enter the list.            */
-const bubble = document.getElementById('bubble');
-function say(text){
-  if(!bubble || bubble.textContent === text) return;
-  bubble.textContent = text;
-  bubble.classList.remove('swap');
-  void bubble.offsetWidth;
-  bubble.classList.add('swap');
-}
-
-const mascot = document.getElementById('mascot');
-if(mascot){
-  mascot.addEventListener('click', () => {
-    mascot.classList.remove('spin');
-    void mascot.offsetWidth;                 // restart the animation
-    mascot.classList.add('spin');
-    setTimeout(() => mascot.classList.remove('spin'), 900);
-    say('よろしく!');
-    setTimeout(() => say(bubbleForState()), 1800);
-  });
-}
-
-const floats = [...document.querySelectorAll('.float')];
-const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-if(floats.length && !calm){
-  let px = 0, py = 0, raf = null;
-  const lean = () => {
-    raf = null;
-    floats.forEach(f => {
-      const d = Number(f.dataset.depth || 20) / 100;
-      f.style.translate = `${px * d}px ${py * d}px`;
+      listEl.appendChild(card);
     });
-  };
-  const track = (x, y) => {
-    px = (x / window.innerWidth  - .5) * 100;
-    py = (y / window.innerHeight - .5) * 100;
-    if(!raf) raf = requestAnimationFrame(lean);
-  };
-  window.addEventListener('pointermove', e => track(e.clientX, e.clientY), { passive:true });
-  // on a phone there is no pointer to follow, so the list's scroll drives them
-  window.addEventListener('scroll', () => track(window.innerWidth / 2,
-    window.innerHeight / 2 + window.scrollY), { passive:true });
-}
 
-/* group cards pop in the first time they scroll into the list */
-const popSeen = new WeakSet();
-const popObserver = ('IntersectionObserver' in window && !calm)
-  ? new IntersectionObserver(entries => {
-      entries.forEach(en => {
-        if(en.isIntersecting && !popSeen.has(en.target)){
-          popSeen.add(en.target);
-          en.target.classList.add('pop');
-          setTimeout(() => en.target.classList.remove('pop'), 500);
-        }
+    /* overall progress across every assessment */
+    const allSteps = tasks.reduce(function (n, t) { return n + t.steps.length; }, 0);
+    const allDone  = tasks.reduce(function (n, t) {
+      return n + t.steps.filter(function (s) { return s.done; }).length;
+    }, 0);
+
+    overall.hidden = tasks.length === 0;
+    emptyNote.hidden = tasks.length > 0;
+    overallTxt.textContent = allDone + ' of ' + allSteps + ' steps done';
+    overallBar.style.width = (allSteps ? Math.round(allDone / allSteps * 100) : 0) + '%';
+  }
+
+  const findTask = function (id) {
+    return tasks.filter(function (t) { return t.id === id; })[0];
+  };
+
+  /* ── ADDING AN ASSESSMENT ──────────────────────────── */
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    const title = titleInput.value.trim();
+    if (!title) return;
+    tasks.unshift({ id: uid(), title: title, due: dueInput.value || '', steps: [] });
+    titleInput.value = ''; dueInput.value = '';
+    save(); render();
+    toast('Added. Now break it into steps.');
+  });
+
+  /* ── EVERYTHING INSIDE A CARD ──────────────────────
+     One listener on the list handles all the buttons, because cards
+     are rebuilt on every render and listeners attached to them would
+     die immediately. Same event delegation as the photo booth.    */
+  listEl.addEventListener('click', function (e) {
+    const card = e.target.closest('.task-card');
+    if (!card) return;
+    const t = findTask(card.dataset.id);
+    if (!t) return;
+    const act = e.target.dataset.act;
+
+    if (act === 'delete') {
+      tasks = tasks.filter(function (x) { return x.id !== t.id; });
+      save(); render(); toast('Task deleted.');
+    }
+
+    if (act === 'toggle') {
+      const li = e.target.closest('.step');
+      const s  = t.steps.filter(function (x) { return x.id === li.dataset.sid; })[0];
+      if (s) { s.done = e.target.checked; save(); render(); }
+    }
+
+    if (act === 'del-step') {
+      const li = e.target.closest('.step');
+      t.steps = t.steps.filter(function (x) { return x.id !== li.dataset.sid; });
+      save(); render();
+    }
+
+    if (act === 'due') {
+      /* A hidden date input is used rather than prompt(), so phones get
+         a proper date picker and there's no text to mis-type. Safari
+         is fussy about date inputs, so if the browser gives us nothing
+         usable we fall back to asking for YYYY-MM-DD as text.       */
+      openDatePicker(t.due, function (val) {
+        t.due = val || '';
+        save(); render();
       });
-    }, { root: groupList, threshold: .15 })
-  : null;
+    }
 
-function watchGroups(){
-  if(!popObserver) return;
-  groupList.querySelectorAll('.group').forEach(el => popObserver.observe(el));
+    if (act === 'rename') {
+      /* prompt() has no maxlength, so the limit set on the add form was
+         easy to walk straight past when renaming. Trim to the same
+         number of characters here and say so, rather than silently
+         cutting the text off.                                        */
+      const next = prompt('Rename this task:', t.title);
+      if (next && next.trim()) {
+        const clean = next.trim();
+        t.title = clean.slice(0, TITLE_MAX);
+        if (clean.length > TITLE_MAX) toast('Shortened to ' + TITLE_MAX + ' characters.');
+        save(); render();
+      }
+    }
+
+    if (act === 'edit-step') {
+      const li = e.target.closest('.step');
+      const s  = t.steps.filter(function (x) { return x.id === li.dataset.sid; })[0];
+      if (!s) return;
+      const next = prompt('Edit this step:', s.text);
+      if (next && next.trim()) {
+        const clean = next.trim();
+        s.text = clean.slice(0, STEP_MAX);
+        if (clean.length > STEP_MAX) toast('Shortened to ' + STEP_MAX + ' characters.');
+        save(); render();
+      }
+    }
+  });
+
+  /* adding a step — the form lives inside each card */
+  listEl.addEventListener('submit', function (e) {
+    if (e.target.dataset.act !== 'add-step') return;
+    e.preventDefault();
+    const card = e.target.closest('.task-card');
+    const t = findTask(card.dataset.id);
+    const input = e.target.querySelector('input');
+    const text = input.value.trim();
+    if (!t || !text) return;
+    t.steps.push({ id: uid(), text: text, done: false });
+    input.value = '';
+    save(); render();
+  });
+
+  clearDone.addEventListener('click', function () {
+    const before = tasks.length;
+    tasks = tasks.filter(function (t) {
+      return !(t.steps.length && t.steps.every(function (s) { return s.done; }));
+    });
+    if (tasks.length === before) { toast('Nothing finished yet.'); return; }
+    save(); render();
+    toast('Cleared ' + (before - tasks.length) + ' finished.');
+  });
+
+  /* ── REORDERING STEPS ──────────────────────────────
+     HTML5 drag and drop. dragstart remembers which step is moving,
+     dragover marks where it would land, and drop moves it in the
+     array — then the list is redrawn from the array as usual.     */
+  let dragSid = null, dragCardId = null;
+
+  listEl.addEventListener('dragstart', function (e) {
+    const li = e.target.closest('.step');
+    if (!li) return;
+    dragSid    = li.dataset.sid;
+    dragCardId = li.closest('.task-card').dataset.id;
+    li.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', dragSid);   // Firefox needs this
+  });
+
+  listEl.addEventListener('dragover', function (e) {
+    const li = e.target.closest('.step');
+    if (!li || !dragSid) return;
+    if (li.closest('.task-card').dataset.id !== dragCardId) return;   // same card only
+    e.preventDefault();
+    listEl.querySelectorAll('.drop-target').forEach(function (n) { n.classList.remove('drop-target'); });
+    li.classList.add('drop-target');
+  });
+
+  listEl.addEventListener('drop', function (e) {
+    const li = e.target.closest('.step');
+    if (!li || !dragSid) return;
+    e.preventDefault();
+    const t = findTask(dragCardId);
+    if (!t) return;
+
+    const from = t.steps.findIndex(function (s) { return s.id === dragSid; });
+    const to   = t.steps.findIndex(function (s) { return s.id === li.dataset.sid; });
+    if (from < 0 || to < 0 || from === to) return;
+
+    const moved = t.steps.splice(from, 1)[0];
+    t.steps.splice(to, 0, moved);
+    save(); render();
+  });
+
+  listEl.addEventListener('dragend', function () {
+    listEl.querySelectorAll('.dragging, .drop-target').forEach(function (n) {
+      n.classList.remove('dragging', 'drop-target');
+    });
+    dragSid = null; dragCardId = null;
+  });
+
+  render();
 }
 
-/* what Beri-chan should be saying right now */
-function bubbleForState(){
-  if(typeof tickId !== 'undefined' && tickId !== null) return 'focus mode — go!';
-  const all = state.groups.flatMap(g => g.tasks);
-  if(all.length && all.every(taskDone)) return 'all done — yatta!';
-  if(!state.groups.length) return 'add a group to start';
-  const left = all.filter(t => !taskDone(t)).length;
-  if(left) return left + (left === 1 ? ' thing left' : ' things left');
-  return 'ready when you are!';
+initTasks();
+
+
+/* ══ INSTALLABLE APP ═════════════════════════════════
+   Runs on every page. Two jobs: register the service worker that makes
+   the site work offline and installable, and show iOS users how to add
+   it to their home screen — Android and desktop Chrome offer that
+   themselves, but iOS has never had an install prompt, so the only way
+   is Share ▸ Add to Home Screen and most people don't know that.    */
+function initPWA() {
+  /* Service workers only run over HTTPS (or localhost), so this simply
+     does nothing when the page is opened straight off the disk.      */
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js').catch(function () {
+        /* nothing to do — the site works fine without offline support */
+      });
+    });
+  }
+
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+  /* 'standalone' means the app was opened from the home screen rather
+     than inside the browser. iOS uses its own navigator.standalone;
+     everyone else uses the display-mode media query.                 */
+  const standalone = window.matchMedia('(display-mode: standalone)').matches ||
+                     navigator.standalone === true;
+
+  let dismissed = false;
+  try { dismissed = localStorage.getItem('helpful.installHint') === 'no'; } catch (err) {}
+
+  if (!isIOS || standalone || dismissed) return;
+
+  const hint = document.createElement('div');
+  hint.className = 'install-hint';
+  hint.innerHTML =
+    '<img src="icons/apple-touch-icon.png" alt="">' +
+    '<p>Add HELPFUL to your home screen — tap <b>Share</b>, then <b>Add to Home Screen</b>.</p>' +
+    '<button aria-label="Dismiss">✕</button>';
+
+  hint.querySelector('button').addEventListener('click', function () {
+    hint.remove();
+    try { localStorage.setItem('helpful.installHint', 'no'); } catch (err) {}
+  });
+
+  /* wait a moment so it doesn't appear before the page has drawn */
+  setTimeout(function () { document.body.appendChild(hint); }, 1800);
 }
 
-/* ══ GO ═════════════════════════════════════════════════ */
-applySkin();
-paintSound();
-document.getElementById('year').textContent = new Date().getFullYear();
-setMins(mins);
-renderGroups();
-watchGroups();
-say(bubbleForState());
-renderWeek();
-paint();
-fitTasks();
-
-if('serviceWorker' in navigator){
-  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
-}
+initPWA();
