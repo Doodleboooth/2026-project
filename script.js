@@ -1,3 +1,7 @@
+/* jshint esversion: 8, browser: true, devel: true */
+// Tells JSHint this file uses modern JavaScript (async/await), runs in
+// a browser, and uses the browser's built-in pop-ups like prompt().
+
 // ── Hamburger menu ───────────────────────────────────
 const menuBtn   = document.getElementById('menuBtn');
 const menuClose = document.getElementById('menuClose');
@@ -998,10 +1002,13 @@ function initTimer() {
      notes, the second slightly higher, each fading out.
      The AudioContext is created on the click that starts the timer —
      browsers block audio that was not triggered by a user action.  */
+  /* Safari once called it webkitAudioContext, so pick whichever exists.
+     Storing it first means 'new AC()' reads clearly below.          */
+  const AC = window.AudioContext || window.webkitAudioContext;
   let audio = null;
   function chime() {
     try {
-      if (!audio) audio = new (window.AudioContext || window.webkitAudioContext)();
+      if (!audio) audio = new AC();
       [0, 0.28].forEach(function (delay, i) {
         const osc  = audio.createOscillator();
         const gain = audio.createGain();
@@ -1022,10 +1029,10 @@ function initTimer() {
     /* creating the AudioContext here means it is unlocked by a real
        click, so the chime is allowed to play later */
     if (!audio) {
-      try { audio = new (window.AudioContext || window.webkitAudioContext)(); }
+      try { audio = new AC(); }
       catch (err) { audio = null; }
     }
-    running ? pause() : start();
+    if (running) { pause(); } else { start(); }
   });
 
   resetBtn.addEventListener('click', reset);
@@ -1286,10 +1293,10 @@ function initTasks() {
         /* the whole chip is a button now, so a due date can be changed
            after the task was created — previously it was set once and
            stuck. No date yet? Offer to add one.                     */
-        (info
-          ? '<button class="due ' + info.cls + '" data-act="due">' + esc(info.text) +
-            ' <span class="due-date">' + esc(info.date) + '</span></button>'
-          : '<button class="due due-empty" data-act="due">+ Add a due date</button>') +
+        (info ?
+          '<button class="due ' + info.cls + '" data-act="due">' + esc(info.text) +
+            ' <span class="due-date">' + esc(info.date) + '</span></button>' :
+          '<button class="due due-empty" data-act="due">+ Add a due date</button>') +
         '<div class="bar"><div class="bar-fill" style="width:' + pct + '%"></div></div>' +
         '<p class="count">' + (total ? done + ' of ' + total + ' steps done' : 'No steps yet — add the first one below') + '</p>' +
         '<ul class="steps">' +
