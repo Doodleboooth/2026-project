@@ -11,19 +11,10 @@
   <!-- Google Fonts -->
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
 
-  <!-- Site CSS (nav, tokens, fonts) -->
-  <!-- ?v=2 is a cache-buster. Browsers and GitHub Pages hold on to CSS
-       and JS hard; bumping this number forces a fresh copy. Change it to
-       v=3, v=4 and so on whenever an edit doesn't seem to take effect. -->
   <link rel="stylesheet" href="style.css?v=2">
 
-  <!-- Photo booth styles live in style.css, under "PHOTO BOOTH" -->
+  <!-- photobooth styles live in style.css -->
 
-  <!-- ══ INSTALLABLE APP (PWA) ══════════════════════════
-       manifest = the app's name, icons and colours.
-       theme-color tints the phone's status bar.
-       The apple-* tags are iOS-only; iOS ignores the manifest for
-       home-screen apps and reads these instead.                   -->
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#2B2B2B">
   <meta name="mobile-web-app-capable" content="yes">
@@ -35,7 +26,7 @@
 
 <body>
 
-  <!-- ── NAV ──────────────────────────────────────────── -->
+  <!-- ── nav ───────── -->
   <nav class="nav-bar">
     <div></div>
     <a class="nav-logo" href="index.html" aria-label="HELPFUL — back to home">HELPFUL</a>
@@ -53,7 +44,7 @@
     <a href="breathing.html">Photo Booth</a>
   </div>
 
-  <!-- ── BOOTH ────────────────────────────────────────── -->
+  <!--booth  ──────────── -->
   <main class="booth-page">
     <h1 class="booth-title">Photo Booth</h1>
     <p class="booth-sub">Four shots, three seconds each. Smile — you've earned a break.</p>
@@ -89,8 +80,8 @@
             <button class="chip" data-filter="dream">Dreamy</button>
           </div>
 
-          <!-- Sticker tray. The buttons are built by script.js from the
-               STICKER_FILES list, reading PNGs out of the stickers/ folder. -->
+          <!-- sticker tray the buttons are built by script.js from the sticker_file list, reading PNGs out of the stickers/ folder. -->
+          
           <div class="stickers">
             <span class="filters-label">Stickers — tap to add, then drag</span>
             <div class="sticker-tray" id="stickerTray"></div>
@@ -128,14 +119,11 @@
     </div>
   </main>
 
-  <!-- full-screen shutter flash — sits outside the camera box so it can
-       cover the whole window and light up your face -->
   <div class="booth-flash" id="flash"></div>
 
   <div class="booth-toast" id="toast"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-  <!-- Photo booth behaviour lives in script.js -->
   <script src="script.js?v=2" defer></script>
 </body>
 </html>
